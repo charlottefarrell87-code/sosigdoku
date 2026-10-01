@@ -316,6 +316,26 @@ $('board').addEventListener('keydown',e=>{ const el=e.target.closest('.cell'); i
 
 function save(){ lsSet(lsKey(),state); }
 
+// ---------- confetti ----------
+function confetti(){
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=document.createElement('canvas'); cv.setAttribute('aria-hidden','true');
+  cv.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50';
+  document.body.appendChild(cv);
+  const ctx=cv.getContext('2d'), dpr=Math.min(2,window.devicePixelRatio||1);
+  const W=innerWidth, H=innerHeight; cv.width=W*dpr; cv.height=H*dpr; ctx.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement);
+  const cols=['--dog','--accent','--r0','--r1','--r2','--r3','--r4','--r5','--gold'].map(v=>cs.getPropertyValue(v).trim()||'#c84');
+  const ps=[]; const burst=(x,dir)=>{ for(let i=0;i<90;i++){ const a=(-90+dir*35+(Math.random()-.5)*70)*Math.PI/180, sp=7+Math.random()*9;
+    ps.push({x,y:H*0.85,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,w:6+Math.random()*6,h:8+Math.random()*10,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[i%cols.length],sway:Math.random()*6}); } };
+  burst(W*0.15,1); burst(W*0.85,-1); setTimeout(()=>burst(W*0.5,0),250);
+  const t0=performance.now();
+  (function frame(t){ const el=t-t0; ctx.clearRect(0,0,W,H);
+    ps.forEach(p=>{ p.vy+=0.28; p.vx*=0.985; p.vy*=0.985; p.x+=p.vx+Math.sin((el/300)+p.sway)*0.6; p.y+=p.vy; p.r+=p.vr;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.globalAlpha=Math.max(0,1-el/3800); ctx.fillStyle=p.c; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*2))+2); ctx.restore(); });
+    if(el<3800) requestAnimationFrame(frame); else cv.remove(); })(t0);
+}
+
 // ---------- flow ----------
 let joinMode='new';
 function setJoinMode(m){ joinMode=m; $('joinNew').hidden=m!=='new'; $('joinCode').hidden=m!=='code'; }
@@ -357,7 +377,7 @@ $('startBtn').addEventListener('click',async()=>{
 });
 function startTimer(){ clearInterval(timerId); timerId=setInterval(tick,250); }
 async function finish(){
-  state.finishedAt=Date.now(); save(); clearInterval(timerId); tick();
+  state.finishedAt=Date.now(); save(); clearInterval(timerId); tick(); confetti();
   const ms=state.finishedAt-state.startedAt, score=ms+state.mistakes*PENALTY;
   showDone(ms,state.mistakes,score); fillDays();
   if(me){
