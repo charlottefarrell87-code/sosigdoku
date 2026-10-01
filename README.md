@@ -1,10 +1,10 @@
 # Sosigdoku
 
-A daily sausage-dog logic puzzle for competing with friends.
+A daily sosig logic puzzle for competing with friends.
 
 ## Rules
 
-- Place 9 sausage dogs on the 9x9 board.
+- Place 9 sosigs on the 9x9 board.
 - One dog in every coloured patch, every row and every column.
 - Dogs can't touch, not even diagonally.
 - Tap a square to mark it with ×, tap again to place a dog. Drag to mark several squares.
