@@ -90,7 +90,15 @@ tr.me td{font-weight:800}
 .namerow input{font:inherit;flex:1 1 160px;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 .note{font-size:13px;color:var(--muted);margin-top:10px}
 .note.warn{color:var(--warn)}
-.you{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.you{display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.youline{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.youhint{font-size:12px}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:var(--ink)}
+.joinpane{display:grid;gap:6px;justify-items:center;width:min(300px,100%)}
+.joinpane label{font-size:13px;font-weight:600}
+.joinpane .namerow{width:100%;margin:0}
+.linkbtn{font:inherit;font-size:12px;background:none;border:0;padding:2px;color:var(--accent);text-decoration:underline;cursor:pointer}
+.linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
 .done-card b{font-size:18px}
 </style>
@@ -118,8 +126,16 @@ tr.me td{font-weight:800}
           <h2 id="veilTitle">Fetching today's dogs…</h2>
           <p id="veilText">Building the board.</p>
           <div id="nameBox" hidden>
-            <label for="nameInput" style="font-size:13px;font-weight:600">Your name on the leaderboard</label>
-            <div class="namerow"><input id="nameInput" maxlength="20" autocomplete="nickname" placeholder="e.g. Charlotte"></div>
+            <div id="joinNew" class="joinpane">
+              <label for="nameInput">Your name on the leaderboard</label>
+              <div class="namerow"><input id="nameInput" maxlength="20" autocomplete="nickname" placeholder="e.g. Charlotte"></div>
+              <button type="button" class="linkbtn" id="haveCode">Played before on another device? Use your player code</button>
+            </div>
+            <div id="joinCode" class="joinpane" hidden>
+              <label for="codeInput">Your player code</label>
+              <div class="namerow"><input id="codeInput" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7QM-2XPA"></div>
+              <button type="button" class="linkbtn" id="newPlayer">New here? Join with your name instead</button>
+            </div>
           </div>
           <button class="btn" id="startBtn" hidden>Start the clock</button>
         </div>
@@ -136,7 +152,12 @@ tr.me td{font-weight:800}
       </div>
       <div class="tablebox" id="lb"><div class="empty">Loading scores…</div></div>
       <div class="note" id="lbNote"></div>
-      <div class="you" id="youRow" hidden><span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn">Change name</button></div>
+      <div class="you" id="youRow" hidden>
+        <div class="youline"><span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn">Change name</button></div>
+        <div class="namerow" id="renameRow" hidden style="margin:0"><input id="renameInput" maxlength="20" aria-label="New name"><button class="ghost" id="renameSave">Save</button><button class="ghost" id="renameCancel">Cancel</button></div>
+        <div class="youline"><span>Your player code <b id="youCode" class="code"></b></span><button class="ghost" id="copyCode">Copy</button></div>
+        <div class="youhint">Use this code to play on another phone or computer. <button type="button" class="linkbtn" id="switchBtn">Not you? Switch player</button></div>
+      </div>
     </aside>
   </div>
 </div>
@@ -161,6 +182,10 @@ tr.me td{font-weight:800}
 
 <script>
 (function(){
+// ---- Leaderboard settings: paste your Supabase Project URL and publishable (anon) key here ----
+const SUPABASE_URL = '';
+const SUPABASE_KEY = '';
+// -------------------------------------------------------------------------------------------------
 const N = 9, PENALTY = 30000, EPOCH = '2026-10-01';
 // ---------- date ----------
 function londonDate(d){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d); }
@@ -207,7 +232,7 @@ const lsKey=()=>'sosigdoku:v2:'+DAY;
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let puzzle=null, cells=[], state=null, timerId=null;
-let db=null, user=null, myId=null, myDoc=null, players=[], canWrite=true, tab='today';
+let myId=null, myDoc=null, players=[], tab='today';
 const $=id=>document.getElementById(id);
 const fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');};
 
@@ -279,52 +304,109 @@ $('board').addEventListener('keydown',e=>{ const el=e.target.closest('.cell'); i
 function save(){ lsSet(lsKey(),state); }
 
 // ---------- flow ----------
-function showVeil(title,text,{start=false,name=false}={}){ $('veil').hidden=false; $('veilTitle').textContent=title; $('veilText').textContent=text; $('startBtn').hidden=!start; $('nameBox').hidden=!name; }
+let joinMode='new';
+function setJoinMode(m){ joinMode=m; $('joinNew').hidden=m!=='new'; $('joinCode').hidden=m!=='code'; }
+$('haveCode').addEventListener('click',()=>setJoinMode('code'));
+$('newPlayer').addEventListener('click',()=>setJoinMode('new'));
+function showVeil(title,text,{start=false,name=false}={}){ $('veil').hidden=false; $('veilTitle').textContent=title; $('veilText').textContent=text; $('startBtn').hidden=!start; $('nameBox').hidden=!name; $('startBtn').textContent=name?'Join and start':'Start the clock'; }
 function updateVeil(){
   if(!puzzle) return;
-  if(state.finishedAt){ $('veil').hidden=true; return; }
-  if(state.startedAt){ $('veil').hidden=true; return; }
-  const needName = db && myId && !(myDoc&&myDoc.name);
-  showVeil(DAY===TODAY?'Ready when you are':'Catching up on '+nice(DAY),'The clock starts as soon as you tap. You get one go at each puzzle, so make it count.',{start:true,name:needName});
-
+  if(state.finishedAt||state.startedAt){ $('veil').hidden=true; return; }
+  const needJoin = online && !me;
+  showVeil(DAY===TODAY?'Ready when you are':'Catching up on '+nice(DAY),'The clock starts as soon as you tap. You get one go at each puzzle, so make it count.',{start:true,name:needJoin});
 }
+function veilError(msg){ $('veilText').textContent=msg; $('startBtn').disabled=false; }
 $('startBtn').addEventListener('click',async()=>{
-  const needName = db && myId && !(myDoc&&myDoc.name);
-  if(needName){ const n=$('nameInput').value.trim(); if(!n){ $('veilText').textContent='Pop your name in first so your friends know who to beat.'; $('nameInput').focus(); return; }
-    await writeMe(d=>{d.name=n;}); }
+  const btn=$('startBtn');
+  if(online && !me){
+    btn.disabled=true;
+    try{
+      if(joinMode==='new'){
+        const n=$('nameInput').value.trim();
+        if(!n) return veilError('Pop your name in first so your friends know who to beat.');
+        const row=(await rpc('join_league',{p_name:n}))[0];
+        setMe({id:row.player_id,name:row.player_name,key:row.player_key});
+      } else {
+        const code=normCode($('codeInput').value);
+        if(code.length!==8) return veilError('Player codes are 8 letters and numbers, like K7QM-2XPA.');
+        const rows=await rpc('sign_in',{p_key:code});
+        if(!rows||!rows.length) return veilError("That code doesn't match a player. Check it and try again.");
+        setMe({id:rows[0].player_id,name:rows[0].player_name,key:code});
+        await refresh();
+        if(state.startedAt||state.finishedAt){ btn.disabled=false; return; } // already played this one on another device
+      }
+    }catch(e){ return veilError("Couldn't reach the leaderboard. Check your connection and try again."); }
+    btn.disabled=false;
+  }
   state.startedAt=Date.now(); save();
-  if(db&&myId) writeMe(d=>{ d.started=d.started||{}; if(!d.started[DAY]) d.started[DAY]=state.startedAt; });
   $('veil').hidden=true; startTimer(); render();
+  if(me){ try{ const st=await rpc('start_play',{p_key:me.key,p_day:DAY}); const t=Date.parse(st); if(t && t<state.startedAt-5000){ state.startedAt=t; save(); tick(); } refresh(); }catch(e){ lbWarn("Your start wasn't saved to the leaderboard. Keep playing; we'll try again when you finish."); } }
 });
 function startTimer(){ clearInterval(timerId); timerId=setInterval(tick,250); }
-function finish(){
+async function finish(){
   state.finishedAt=Date.now(); save(); clearInterval(timerId); tick();
   const ms=state.finishedAt-state.startedAt, score=ms+state.mistakes*PENALTY;
-  showDone(ms,state.mistakes,score);
-  if(db&&myId) writeMe(d=>{ d.results=d.results||{}; if(!d.results[DAY]) d.results[DAY]={ms,mistakes:state.mistakes,score,at:state.finishedAt}; });
+  showDone(ms,state.mistakes,score); fillDays();
+  if(me){
+    try{
+      await rpc('start_play',{p_key:me.key,p_day:DAY}); // makes sure a start exists
+      const r=(await rpc('finish_play',{p_key:me.key,p_day:DAY,p_mistakes:state.mistakes,p_client_ms:ms}))[0];
+      if(r) showDone(r.out_ms,r.out_mistakes,r.out_score);
+      refresh();
+    }catch(e){ lbWarn("Your score couldn't be posted. Check your connection and refresh."); }
+  }
 }
 function showDone(ms,mistakes,score){
   const c=$('doneCard'); c.hidden=false;
   c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`;
 }
 
-// ---------- leaderboard ----------
-async function writeMe(mut){
-  if(!db||!myId||!canWrite)return;
-  const next=JSON.parse(JSON.stringify(myDoc||{})); mut(next); myDoc=next;
-  try{ await db.collection('players').doc(myId).set(next); }
-  catch(e){ if(e&&e.code==='invalid_argument'){ canWrite=false; $('lbNote').className='note warn'; $('lbNote').textContent="You can play, but your scores can't be posted with your current access. Ask whoever shared this to add you as an editor."; } }
-  renderMe(); renderLB();
+// ---------- players & leaderboard data (Supabase) ----------
+const online = !!(SUPABASE_URL && SUPABASE_KEY);
+let me = lsGet('sosigdoku:me'); // {id,name,key}
+function setMe(m){ me=m; myId=m?m.id:null; if(m) lsSet('sosigdoku:me',m); else { try{localStorage.removeItem('sosigdoku:me');}catch(e){} } renderMe(); }
+function normCode(v){ return (v||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function prettyCode(k){ return k?k.slice(0,4)+'-'+k.slice(4):''; }
+function lbWarn(msg){ $('lbNote').className='note warn'; $('lbNote').textContent=msg; }
+async function api(path,opts={}){
+  const h={apikey:SUPABASE_KEY,'Content-Type':'application/json'};
+  if(SUPABASE_KEY.startsWith('eyJ')) h.Authorization='Bearer '+SUPABASE_KEY;
+  const r=await fetch(SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/'+path,{...opts,headers:h});
+  const j=await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((j&&j.message)||('HTTP '+r.status));
+  return j;
 }
-function renderMe(){ if(myDoc&&myDoc.name){ $('youRow').hidden=false; $('youName').textContent=myDoc.name; } }
-$('renameBtn').addEventListener('click',()=>{ const box=$('youRow'); box.innerHTML=`<div class="namerow" style="flex:1"><input id="renameInput" maxlength="20" value=""><button class="btn" id="renameSave" style="padding:8px 16px;font-size:14px">Save</button></div>`;
-  const inp=$('renameInput'); inp.value=myDoc.name||''; inp.focus();
-  $('renameSave').addEventListener('click',async()=>{ const n=inp.value.trim(); if(!n)return; box.innerHTML='<span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn2">Change name</button>'; await writeMe(d=>{d.name=n;}); $('renameBtn2').addEventListener('click',()=>$('renameBtn').click()); });
-});
+const rpc=(fn,args)=>api('rpc/'+fn,{method:'POST',body:JSON.stringify(args)});
+async function refresh(){
+  if(!online) return;
+  try{
+    const [names,plays]=await Promise.all([api('player_names?select=id,name'),api('plays?select=player_id,day,started_at,ms,mistakes,score')]);
+    const byId={}; names.forEach(n=>byId[n.id]={id:n.id,data:{name:n.name,results:{},started:{}}});
+    plays.forEach(p=>{const o=byId[p.player_id]; if(!o)return; o.data.started[p.day]=Date.parse(p.started_at); if(p.score!=null) o.data.results[p.day]={ms:p.ms,mistakes:p.mistakes,score:p.score,at:Date.parse(p.started_at)+p.ms};});
+    players=Object.values(byId);
+    $('lbNote').textContent='';
+    if(me){ const mine=byId[me.id]; if(mine){ myDoc=mine.data; if(mine.data.name!==me.name) setMe({...me,name:mine.data.name}); } else { setMe(null); myDoc=null; } }
+    if(puzzle&&state){ const had=state.finishedAt, hadStart=state.startedAt; syncFromServer();
+      if(state.finishedAt&&!had){ clearInterval(timerId); const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); render(); }
+      else if(state.startedAt&&!hadStart){ startTimer(); render(); } }
+    fillDays(); renderMe(); renderLB(); updateVeil();
+  }catch(e){ lbWarn("Couldn't load the leaderboard just now. It'll try again shortly."); }
+}
+function renderMe(){
+  if(!me){ $('youRow').hidden=true; return; }
+  $('youRow').hidden=false; $('youName').textContent=me.name; $('youCode').textContent=prettyCode(me.key);
+}
+$('copyCode').addEventListener('click',async()=>{ const b=$('copyCode'); try{ await navigator.clipboard.writeText(prettyCode(me.key)); b.textContent='Copied'; }catch(e){ const r=document.createRange(); r.selectNodeContents($('youCode')); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent='Selected'; } setTimeout(()=>b.textContent='Copy',1500); });
+$('switchBtn').addEventListener('click',()=>{ setMe(null); myDoc=null; setJoinMode('code'); renderLB(); loadDay(DAY); });
+$('renameBtn').addEventListener('click',()=>{ $('renameRow').hidden=false; $('renameInput').value=me.name; $('renameInput').focus(); });
+$('renameCancel').addEventListener('click',()=>{ $('renameRow').hidden=true; });
+$('renameSave').addEventListener('click',async()=>{ const n=$('renameInput').value.trim(); if(!n)return;
+  try{ await rpc('rename_player',{p_key:me.key,p_name:n}); setMe({...me,name:n}); $('renameRow').hidden=true; refresh(); }
+  catch(e){ lbWarn("Couldn't change your name. Try again in a moment."); } });
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function renderLB(){
   const box=$('lb');
-  if(!db){ box.innerHTML='<div class="empty">Scores show up here once you open the shared link while signed in to Claude. You can still play today\'s puzzle.</div>'; return; }
+  if(!online){ box.innerHTML='<div class="empty">The leaderboard isn\'t set up yet. You can still play the puzzle.</div>'; return; }
   const named=players.filter(p=>p.data&&p.data.name);
   if(tab==='today'){
     const done=named.filter(p=>p.data.results&&p.data.results[DAY]).sort((a,b)=>a.data.results[DAY].score-b.data.results[DAY].score);
@@ -396,29 +478,10 @@ function loadDay(d){
     updateVeil(); renderLB();
   },30);
 }
+myId=me?me.id:null; renderMe();
 loadDay(TODAY);
 renderLB();
-
-(async()=>{
-  if(!window.claude||!window.claude.use){ return; }
-  try{ db=await claude.use('db'); user=await claude.use('user'); }catch(e){ db=null; }
-  if(!db||!user){ db=null; renderLB(); return; }
-  myId=await user.id();
-  if(!myId){ db=null; renderLB(); return; }
-  $('lb').innerHTML='<div class="empty">Loading scores…</div>';
-  db.collection('players').onSnapshot(snap=>{
-    players=snap.docs.map(d=>({id:d.id,data:d.data()||{}}));
-    const mine=players.find(p=>p.id===myId);
-    const first=!myDoc;
-    if(mine) myDoc=mine.data;
-    if(first&&mine&&puzzle&&state){ const had=state.finishedAt, hadStart=state.startedAt; syncFromServer();
-      if(state.finishedAt&&!had){ clearInterval(timerId); const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); render(); }
-      else if(state.startedAt&&!hadStart){ startTimer(); render(); } }
-    fillDays();
-    renderMe(); renderLB(); updateVeil();
-  }, err=>{ $('lbNote').className='note warn'; $('lbNote').textContent="Couldn't load the leaderboard just now. Refresh to try again."; });
-  updateVeil();
-})();
+if(online){ refresh(); setInterval(()=>{ if(document.visibilityState==='visible') refresh(); },20000); document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refresh(); }); }
 })();
 </script>
 
