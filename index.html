@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Sosigdoku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400;600;800&display=swap">
+<style>
+/* Layout: masthead, then board (left) + friends' leaderboard (right); stacks on phones. */
+:root{
+  --bg:#EEF1E8; --panel:#FBFCF8; --ink:#1F2A24; --muted:#5E6B63; --line:#D3DACB;
+  --accent:#1D6A5C; --accent-ink:#FFFFFF; --warn:#C23A2B; --gold:#B8860B;
+  --halo:rgba(255,255,255,.55); --edge:#1F2A24; --thin:rgba(31,42,36,.22); --dog:#7B4524; --dog-dark:#3E1F0C; --mark:#7B867E;
+  --r0:#F6C9C0; --r1:#F8DFA6; --r2:#C9E3B0; --r3:#AFD8E0; --r4:#CFC4EC;
+  --r5:#F3C6DD; --r6:#E2D2B6; --r7:#B9D4C2; --r8:#C7D1E6;
+  --display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
+  --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
+  --halo:rgba(255,235,210,.45); --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
+  --r0:#6B3A35; --r1:#6A5528; --r2:#3E5A31; --r3:#2D5560; --r4:#4A4170;
+  --r5:#683650; --r6:#5C4C33; --r7:#2F5A43; --r8:#3A4664; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
+  --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
+  --halo:rgba(255,235,210,.45); --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
+  --r0:#6B3A35; --r1:#6A5528; --r2:#3E5A31; --r3:#2D5560; --r4:#4A4170;
+  --r5:#683650; --r6:#5C4C33; --r7:#2F5A43; --r8:#3A4664; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:20px 40px}
+header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo h1{font-family:var(--display);font-weight:400;font-size:clamp(30px,6vw,44px);line-height:1;margin:0;letter-spacing:.01em}
+.logo svg{width:64px;height:auto;flex:none}
+.meta{color:var(--muted);font-size:13px;text-align:right}
+.meta{display:flex;align-items:center;gap:8px}
+.daysel{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 12px;max-width:100%}
+.daysel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column}
+.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.stat b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat b.bad{color:var(--warn)}
+.boardbox{position:relative}
+.board{display:grid;width:100%;aspect-ratio:1;max-width:100%;border:0;border-radius:6px;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--panel)}
+.cell{position:relative;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0;padding:0;margin:0;font:inherit;color:var(--mark)}
+.cell:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;z-index:2}
+.cell svg.x{position:absolute;inset:0;width:100%;height:100%;opacity:.6}
+.cell svg.x.bad{color:var(--warn);opacity:1}
+.cell svg.dogi{width:86%;height:auto;max-height:100%;filter:drop-shadow(0 0 1.5px var(--halo))}
+.cell.err{animation:shake .35s}
+.cell.hit svg.dogi{animation:pop .25s ease-out}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes pop{0%{transform:scale(.4)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.cell.err,.cell.hit svg.dogi{animation:none}}
+.veil{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:6px;text-align:center;padding:16px}
+.veil h2{font-family:var(--display);font-weight:400;font-size:28px;margin:0;text-wrap:balance}
+.veil p{margin:0;color:var(--muted);max-width:32ch}
+button.btn{font:inherit;font-weight:800;border:0;border-radius:999px;padding:12px 22px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-size:16px}
+button.btn:focus-visible,button.ghost:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button.btn[disabled]{opacity:.5;cursor:default}
+button.ghost{font:inherit;font-weight:600;background:none;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:13px}
+.rules{margin-top:14px;color:var(--muted);font-size:13px;display:grid;gap:4px}
+.rules b{color:var(--ink)}
+h3{font-family:var(--display);font-weight:400;font-size:22px;margin:0}
+.tabs{display:flex;gap:6px;margin:10px 0 12px}
+.tabs button{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+tr.me td{font-weight:800}
+.rank{width:28px;font-weight:800;color:var(--muted)}
+.rank.first{color:var(--gold)}
+.pill{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--line);color:var(--muted)}
+.empty{color:var(--muted);padding:14px 0;font-size:14px}
+.tablebox{overflow-x:auto}
+.namerow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.namerow input{font:inherit;flex:1 1 160px;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.note{font-size:13px;color:var(--muted);margin-top:10px}
+.note.warn{color:var(--warn)}
+.you{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
+.done-card b{font-size:18px}
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="logo">
+      <svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg>
+      <h1>Sosigdoku</h1>
+    </div>
+    <div class="meta"><label for="daySel">Puzzle</label><select id="daySel" class="daysel"></select></div>
+  </header>
+
+  <div class="grid2">
+    <section class="panel" aria-label="Today's puzzle">
+      <div class="hud">
+        <div class="stat"><span>Time</span><b id="timer">0:00</b></div>
+        <div class="stat"><span>Dogs</span><b id="dogCount">0/9</b></div>
+        <div class="stat"><span>Mistakes</span><b id="mistakes">0</b></div>
+        <div class="stat"><span>Score</span><b id="scoreNow">0:00</b></div>
+      </div>
+      <div class="boardbox">
+        <div class="board" id="board" role="grid" aria-label="Puzzle board"></div>
+        <div class="veil" id="veil">
+          <h2 id="veilTitle">Fetching today's dogs…</h2>
+          <p id="veilText">Building the board.</p>
+          <div id="nameBox" hidden>
+            <label for="nameInput" style="font-size:13px;font-weight:600">Your name on the leaderboard</label>
+            <div class="namerow"><input id="nameInput" maxlength="20" autocomplete="nickname" placeholder="e.g. Charlotte"></div>
+          </div>
+          <button class="btn" id="startBtn" hidden>Start the clock</button>
+        </div>
+      </div>
+      <div id="doneCard" class="done-card" hidden></div>
+    </section>
+
+    <aside class="panel" aria-label="Leaderboard">
+      <h3>Leaderboard</h3>
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tabToday" aria-selected="true">Daily</button>
+        <button role="tab" id="tabWeek" aria-selected="false">This week</button>
+        <button role="tab" id="tabAll" aria-selected="false">Overall</button>
+      </div>
+      <div class="tablebox" id="lb"><div class="empty">Loading scores…</div></div>
+      <div class="note" id="lbNote"></div>
+      <div class="you" id="youRow" hidden><span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn">Change name</button></div>
+    </aside>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="dog">
+      <path d="M7 12 Q2 9 3 4" stroke="var(--dog)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <rect x="10" y="12" width="3.4" height="9" rx="1.7" fill="var(--dog-dark)"/>
+      <rect x="27" y="12" width="3.4" height="9" rx="1.7" fill="var(--dog-dark)"/>
+      <rect x="5" y="8" width="31" height="11" rx="5.5" fill="var(--dog)"/>
+      <rect x="13.5" y="13" width="3.4" height="8.5" rx="1.7" fill="var(--dog)"/>
+      <rect x="30.5" y="13" width="3.4" height="8.5" rx="1.7" fill="var(--dog)"/>
+      <ellipse cx="38" cy="8" rx="6.5" ry="5.5" fill="var(--dog)"/>
+      <ellipse cx="44" cy="10" rx="3.6" ry="2.6" fill="var(--dog)"/>
+      <circle cx="47" cy="9.6" r="1.3" fill="var(--dog-dark)"/>
+      <path d="M34.5 4.5 Q31 6 32.5 13 Q36 12 37 6 Z" fill="var(--dog-dark)"/>
+      <circle cx="40" cy="6.6" r="1.1" fill="var(--dog-dark)"/>
+    </g>
+  </defs>
+</svg>
+
+<script>
+(function(){
+const N = 9, PENALTY = 30000, EPOCH = '2026-10-01';
+// ---------- date ----------
+function londonDate(d){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d); }
+const TODAY = londonDate(new Date());
+function dayIndex(s){ return Math.round((Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)) - Date.UTC(2026,9,1))/86400000); }
+function prevDay(s){ const t=Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))-86400000; return new Date(t).toISOString().slice(0,10); }
+let DAY = TODAY;
+const nice=s=>new Date(s+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+function allDays(){ const out=[]; let d=TODAY; while(dayIndex(d)>=0){ out.push(d); d=prevDay(d); } return out; }
+
+// ---------- generator (seeded by date, so everyone gets the same board) ----------
+function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}return h>>>0;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function shuffle(arr,rnd){for(let i=arr.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+const D=[[1,0],[-1,0],[0,1],[0,-1]];
+function placement(rnd){const p=[],used=new Array(N).fill(false);
+  function go(r){if(r===N)return true;for(const c of shuffle([...Array(N).keys()],rnd)){if(used[c]||(r>0&&Math.abs(c-p[r-1])<=1))continue;used[c]=true;p[r]=c;if(go(r+1))return true;used[c]=false;}return false;}
+  go(0);return p;}
+function growRegions(p,rnd){const g=Array.from({length:N},()=>new Array(N).fill(-1)),size=new Array(N).fill(1);
+  for(let r=0;r<N;r++)g[r][p[r]]=r;let left=N*N-N;
+  while(left>0){const cand=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(g[r][c]===-1)for(const[dr,dc]of D){const rr=r+dr,cc=c+dc;if(rr>=0&&rr<N&&cc>=0&&cc<N&&g[rr][cc]!==-1)cand.push([r,c,g[rr][cc]]);}
+    let tot=0;const w=cand.map(x=>{const v=1/Math.pow(size[x[2]],1.2)*(0.3+rnd());tot+=v;return v;});let t=rnd()*tot,i=0;while(i<w.length-1&&t>w[i]){t-=w[i];i++;}
+    const[r,c,k]=cand[i];g[r][c]=k;size[k]++;left--;}
+  return g;}
+function solve(g,limit){let count=0,nodes=0;const sols=[];const colU=new Array(N).fill(false),regU=new Array(N).fill(false),p=[];
+  function go(r){if(count>=limit)return;if(r===N){count++;sols.push(p.slice());return;}
+    for(let c=0;c<N;c++){if(colU[c]||regU[g[r][c]]||(r>0&&Math.abs(c-p[r-1])<=1))continue;nodes++;colU[c]=regU[g[r][c]]=true;p[r]=c;go(r+1);colU[c]=regU[g[r][c]]=false;}}
+  go(0);return{count,nodes,sols};}
+function connectedWithout(g,k,rr,cc){let start=null,total=0;for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(g[r][c]===k&&!(r===rr&&c===cc)){total++;if(!start)start=[r,c];}
+  if(!start)return false;const seen=new Set([start[0]*N+start[1]]),st=[start];while(st.length){const[r,c]=st.pop();for(const[dr,dc]of D){const a=r+dr,b=c+dc;if(a<0||a>=N||b<0||b>=N||(a===rr&&b===cc)||g[a][b]!==k||seen.has(a*N+b))continue;seen.add(a*N+b);st.push([a,b]);}}
+  return seen.size===total;}
+function repair(g,p,rnd){for(let it=0;it<300;it++){const s=solve(g,2);if(s.count===1)return s;
+    const alt=s.sols.find(x=>x.some((c,r)=>c!==p[r]));const rows=shuffle([...Array(N).keys()].filter(r=>alt[r]!==p[r]),rnd);let moved=false;
+    for(const r of rows){const c=alt[r];const k=g[r][c];const nbr=shuffle(D.map(([dr,dc])=>[r+dr,c+dc]).filter(([a,b])=>a>=0&&a<N&&b>=0&&b<N&&g[a][b]!==k),rnd);
+      if(!nbr.length||!connectedWithout(g,k,r,c))continue;g[r][c]=g[nbr[0][0]][nbr[0][1]];moved=true;break;}
+    if(!moved)return null;}return null;}
+function generate(seed){let best=null,found=0;
+  for(let a=0;a<300&&found<8;a++){const rnd=mulberry32(hashStr(seed+'#'+a));const p=placement(rnd);const g=growRegions(p,rnd);const s=repair(g,p,rnd);
+    if(s){found++;if(!best||s.nodes>best.nodes)best={grid:g,sol:p};}}
+  return best;}
+
+// ---------- state ----------
+const lsKey=()=>'sosigdoku:v2:'+DAY;
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let puzzle=null, cells=[], state=null, timerId=null;
+let db=null, user=null, myId=null, myDoc=null, players=[], canWrite=true, tab='today';
+const $=id=>document.getElementById(id);
+const fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');};
+
+function freshState(){return{marks:Array(N*N).fill(0),mistakes:0,startedAt:null,finishedAt:null};}
+
+// ---------- board ----------
+function buildBoard(){
+  const b=$('board'); b.style.gridTemplateColumns=`repeat(${N},minmax(0,1fr))`; b.style.gridTemplateRows=`repeat(${N},minmax(0,1fr))`; b.innerHTML=''; cells=[];
+  const g=puzzle.grid, bw='1px solid var(--thin)', tw='1px solid var(--thin)';
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const el=document.createElement('button'); el.className='cell'; el.type='button'; el.dataset.i=r*N+c;
+    el.setAttribute('aria-label',`Row ${r+1}, column ${c+1}`);
+    el.style.background=`var(--r${g[r][c]})`;
+    el.style.borderTop = r>0 ? (g[r-1][c]!==g[r][c]?bw:tw) : '0';
+    el.style.borderLeft= c>0 ? (g[r][c-1]!==g[r][c]?bw:tw) : '0';
+    b.appendChild(el); cells.push(el);
+  }
+}
+const X_SVG='<svg class="x" viewBox="0 0 10 10" preserveAspectRatio="none" aria-hidden="true"><path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" vector-effect="non-scaling-stroke" style="stroke-width:2.5px"/></svg>';
+const X_BAD=X_SVG.replace('class="x"','class="x bad"');
+const DOG_SVG='<svg class="dogi" viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg>';
+function render(){
+  let dogs=0;
+  cells.forEach((el,i)=>{const m=state.marks[i];
+    const want = m===2?'dog':m===3?'bad':m===1?'x':'';
+    if(el.dataset.v!==want){el.dataset.v=want; el.innerHTML = m===2?DOG_SVG : m===3?X_BAD : m===1?X_SVG:'';}
+    if(m===2)dogs++;
+    el.setAttribute('aria-label',`Row ${Math.floor(i/N)+1}, column ${i%N+1}${m===2?', dog':m===3?', wrong guess':m===1?', marked':''}`);
+  });
+  $('dogCount').textContent=dogs+'/'+N;
+  $('mistakes').textContent=state.mistakes; $('mistakes').className=state.mistakes?'bad':'';
+  tick();
+}
+function elapsed(){ if(!state.startedAt)return 0; return (state.finishedAt||Date.now())-state.startedAt; }
+function tick(){ const e=elapsed(); $('timer').textContent=fmt(e); $('scoreNow').textContent=fmt(e+state.mistakes*PENALTY); }
+
+function autoCross(i){
+  const r=Math.floor(i/N),c=i%N,k=puzzle.grid[r][c];
+  for(let j=0;j<N*N;j++){ if(state.marks[j]!==0)continue; const rr=Math.floor(j/N),cc=j%N;
+    if(rr===r||cc===c||puzzle.grid[rr][cc]===k||(Math.abs(rr-r)<=1&&Math.abs(cc-c)<=1)) state.marks[j]=1; }
+}
+function tryDog(i){
+  const r=Math.floor(i/N),c=i%N;
+  if(puzzle.sol[r]===c){ state.marks[i]=2; cells[i].classList.remove('hit'); void cells[i].offsetWidth; cells[i].classList.add('hit'); }
+  else { state.mistakes++; state.marks[i]=3; cells[i].classList.remove('err'); void cells[i].offsetWidth; cells[i].classList.add('err'); }
+}
+function tapCell(i){
+  if(!playing())return;
+  const m=state.marks[i];
+  if(m===2||m===3)return; // correct dogs and known mistakes are locked in
+  if(m===0) state.marks[i]=1; else tryDog(i);
+  afterMove();
+}
+function afterMove(){ save(); render(); if(state.marks.filter(m=>m===2).length===N) finish(); }
+function playing(){ return state.startedAt && !state.finishedAt; }
+
+// pointer: tap to cycle, drag to mark
+let drag=null;
+$('board').addEventListener('pointerdown',e=>{ const el=e.target.closest('.cell'); if(!el||!playing())return; drag={start:+el.dataset.i,moved:false,setTo:null}; });
+$('board').addEventListener('pointermove',e=>{ if(!drag)return; const el=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell'); if(!el)return; const i=+el.dataset.i;
+  if(i!==drag.start||drag.moved){ if(!drag.moved){drag.moved=true; drag.setTo= state.marks[drag.start]===1?0:1; mark(drag.start);} mark(i);} });
+function mark(i){ if(state.marks[i]===2||state.marks[i]===3)return; if(state.marks[i]!==drag.setTo){state.marks[i]=drag.setTo; render();} }
+window.addEventListener('pointerup',()=>{ if(!drag)return; const d=drag; drag=null; if(d.moved){save();} else tapCell(d.start); });
+$('board').addEventListener('keydown',e=>{ const el=e.target.closest('.cell'); if(!el)return; const i=+el.dataset.i; let j=null;
+  if(e.key==='ArrowRight')j=i%N<N-1?i+1:i; if(e.key==='ArrowLeft')j=i%N>0?i-1:i; if(e.key==='ArrowDown')j=i+N<N*N?i+N:i; if(e.key==='ArrowUp')j=i-N>=0?i-N:i;
+  if(j!==null){e.preventDefault();cells[j].focus();}
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();tapCell(i);} });
+
+function save(){ lsSet(lsKey(),state); }
+
+// ---------- flow ----------
+function showVeil(title,text,{start=false,name=false}={}){ $('veil').hidden=false; $('veilTitle').textContent=title; $('veilText').textContent=text; $('startBtn').hidden=!start; $('nameBox').hidden=!name; }
+function updateVeil(){
+  if(!puzzle) return;
+  if(state.finishedAt){ $('veil').hidden=true; return; }
+  if(state.startedAt){ $('veil').hidden=true; return; }
+  const needName = db && myId && !(myDoc&&myDoc.name);
+  showVeil(DAY===TODAY?'Ready when you are':'Catching up on '+nice(DAY),'The clock starts as soon as you tap. You get one go at each puzzle, so make it count.',{start:true,name:needName});
+
+}
+$('startBtn').addEventListener('click',async()=>{
+  const needName = db && myId && !(myDoc&&myDoc.name);
+  if(needName){ const n=$('nameInput').value.trim(); if(!n){ $('veilText').textContent='Pop your name in first so your friends know who to beat.'; $('nameInput').focus(); return; }
+    await writeMe(d=>{d.name=n;}); }
+  state.startedAt=Date.now(); save();
+  if(db&&myId) writeMe(d=>{ d.started=d.started||{}; if(!d.started[DAY]) d.started[DAY]=state.startedAt; });
+  $('veil').hidden=true; startTimer(); render();
+});
+function startTimer(){ clearInterval(timerId); timerId=setInterval(tick,250); }
+function finish(){
+  state.finishedAt=Date.now(); save(); clearInterval(timerId); tick();
+  const ms=state.finishedAt-state.startedAt, score=ms+state.mistakes*PENALTY;
+  showDone(ms,state.mistakes,score);
+  if(db&&myId) writeMe(d=>{ d.results=d.results||{}; if(!d.results[DAY]) d.results[DAY]={ms,mistakes:state.mistakes,score,at:state.finishedAt}; });
+}
+function showDone(ms,mistakes,score){
+  const c=$('doneCard'); c.hidden=false;
+  c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`;
+}
+
+// ---------- leaderboard ----------
+async function writeMe(mut){
+  if(!db||!myId||!canWrite)return;
+  const next=JSON.parse(JSON.stringify(myDoc||{})); mut(next); myDoc=next;
+  try{ await db.collection('players').doc(myId).set(next); }
+  catch(e){ if(e&&e.code==='invalid_argument'){ canWrite=false; $('lbNote').className='note warn'; $('lbNote').textContent="You can play, but your scores can't be posted with your current access. Ask whoever shared this to add you as an editor."; } }
+  renderMe(); renderLB();
+}
+function renderMe(){ if(myDoc&&myDoc.name){ $('youRow').hidden=false; $('youName').textContent=myDoc.name; } }
+$('renameBtn').addEventListener('click',()=>{ const box=$('youRow'); box.innerHTML=`<div class="namerow" style="flex:1"><input id="renameInput" maxlength="20" value=""><button class="btn" id="renameSave" style="padding:8px 16px;font-size:14px">Save</button></div>`;
+  const inp=$('renameInput'); inp.value=myDoc.name||''; inp.focus();
+  $('renameSave').addEventListener('click',async()=>{ const n=inp.value.trim(); if(!n)return; box.innerHTML='<span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn2">Change name</button>'; await writeMe(d=>{d.name=n;}); $('renameBtn2').addEventListener('click',()=>$('renameBtn').click()); });
+});
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function renderLB(){
+  const box=$('lb');
+  if(!db){ box.innerHTML='<div class="empty">Scores show up here once you open the shared link while signed in to Claude. You can still play today\'s puzzle.</div>'; return; }
+  const named=players.filter(p=>p.data&&p.data.name);
+  if(tab==='today'){
+    const done=named.filter(p=>p.data.results&&p.data.results[DAY]).sort((a,b)=>a.data.results[DAY].score-b.data.results[DAY].score);
+    const going=named.filter(p=>!(p.data.results&&p.data.results[DAY])&&p.data.started&&p.data.started[DAY]);
+    const head=`<div class="note" style="margin:0 0 8px">${DAY===TODAY?'Today':nice(DAY)} · puzzle #${dayIndex(DAY)+1}</div>`;
+    if(!done.length&&!going.length){ box.innerHTML=head+'<div class="empty">Nobody has finished this puzzle yet. First on the board sets the time to beat.</div>'; return; }
+    let h=head+'<table><thead><tr><th></th><th>Player</th><th class="num">Time</th><th class="num">Mistakes</th><th class="num">Score</th></tr></thead><tbody>';
+    done.forEach((p,i)=>{const r=p.data.results[DAY]; h+=`<tr class="${p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(p.data.name)}</td><td class="num">${fmt(r.ms)}</td><td class="num">${r.mistakes}</td><td class="num"><b>${fmt(r.score)}</b></td></tr>`;});
+    going.forEach(p=>{h+=`<tr class="${p.id===myId?'me':''}"><td class="rank">–</td><td>${esc(p.data.name)}</td><td class="num" colspan="3"><span class="pill">Still sniffing about</span></td></tr>`;});
+    box.innerHTML=h+'</tbody></table>';
+  } else {
+    // daily winners (lowest score; ties share the win)
+    const days={}; named.forEach(p=>Object.entries(p.data.results||{}).forEach(([d,r])=>{(days[d]=days[d]||[]).push({id:p.id,score:r.score});}));
+    const dayWinners={}; Object.entries(days).forEach(([d,arr])=>{ const best=Math.min(...arr.map(x=>x.score)); dayWinners[d]=arr.filter(x=>x.score===best).map(x=>x.id); });
+    const stats=(p,filter)=>{const res=p.data.results||{}; const ds=Object.keys(res).filter(filter); const sc=ds.map(d=>res[d].score);
+      return {played:ds.length, wins:ds.filter(d=>dayWinners[d]&&dayWinners[d].includes(p.id)).length, best:sc.length?Math.min(...sc):null, avg:sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:null};};
+    const rank=(a,b)=>b.wins-a.wins||(a.avg-b.avg);
+    const thisWeek=weekOf(TODAY);
+    if(tab==='week'){
+      const rows=named.map(p=>({p,...stats(p,d=>weekOf(d)===thisWeek)})).filter(x=>x.played).sort(rank);
+      const mon=new Date(thisWeek+'T12:00:00Z'), sun=new Date(mon.getTime()+6*86400000), f=x=>x.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+      let h=`<div class="note" style="margin:0 0 8px">Week of ${f(mon)} to ${f(sun)}</div>`;
+      if(!rows.length){ box.innerHTML=h+'<div class="empty">No puzzles finished this week yet.</div>'; return; }
+      h+='<table><thead><tr><th></th><th>Player</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Avg</th></tr></thead><tbody>';
+      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.wins}</b></td><td class="num">${x.played}</td><td class="num">${fmt(x.avg)}</td></tr>`;});
+      box.innerHTML=h+'</tbody></table><div class="note">Most daily wins takes the week; ties go to the lower average score. Today counts as it stands and the week closes Sunday at midnight.</div>';
+    } else {
+      // weekly champions for completed weeks
+      const weeks={}; Object.keys(days).forEach(d=>{const w=weekOf(d); if(w!==thisWeek)(weeks[w]=weeks[w]||1);});
+      const weekWins={};
+      Object.keys(weeks).forEach(w=>{ const rs=named.map(p=>({id:p.id,...stats(p,d=>weekOf(d)===w)})).filter(x=>x.played).sort(rank); if(!rs.length)return;
+        rs.filter(x=>x.wins===rs[0].wins&&x.avg===rs[0].avg).forEach(x=>weekWins[x.id]=(weekWins[x.id]||0)+1); });
+      const rows=named.map(p=>{const st=stats(p,d=>d!==TODAY); const all=stats(p,()=>true); const res=p.data.results||{};
+        let streak=0, d=res[TODAY]?TODAY:prevDay(TODAY); while(res[d]){streak++; d=prevDay(d);}
+        return {p, weekly:weekWins[p.id]||0, daily:st.wins, played:all.played, best:all.best, avg:all.avg, streak};
+      }).filter(x=>x.played).sort((a,b)=>b.weekly-a.weekly||b.daily-a.daily||(a.avg-b.avg));
+      if(!rows.length){ box.innerHTML='<div class="empty">No finished puzzles yet. The overall league fills up as people play.</div>'; return; }
+      let h='<table><thead><tr><th></th><th>Player</th><th class="num">Weekly wins</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Streak</th><th class="num">Best</th></tr></thead><tbody>';
+      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num">${x.streak}</td><td class="num">${fmt(x.best)}</td></tr>`;});
+      box.innerHTML=h+'</tbody></table><div class="note">Ranked by weekly wins, then daily wins. Wins only count once a day or week has finished.</div>';
+    }
+  }
+}
+function weekOf(s){ const t=Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)); const dow=(new Date(t).getUTCDay()+6)%7; return new Date(t-dow*86400000).toISOString().slice(0,10); }
+function setTab(t){ tab=t; ['Today','Week','All'].forEach(n=>$('tab'+n).setAttribute('aria-selected',t===n.toLowerCase())); renderLB(); }
+$('tabToday').addEventListener('click',()=>setTab('today')); $('tabWeek').addEventListener('click',()=>setTab('week')); $('tabAll').addEventListener('click',()=>setTab('all'));
+
+// ---------- boot ----------
+function syncFromServer(){
+  const r0=myDoc&&myDoc.results&&myDoc.results[DAY], st=myDoc&&myDoc.started&&myDoc.started[DAY];
+  if(!state)return;
+  if(r0&&!state.finishedAt){ state.startedAt=st||state.startedAt||(r0.at-r0.ms); state.finishedAt=state.startedAt+r0.ms; state.mistakes=r0.mistakes; save(); }
+  else if(st&&!state.startedAt){ state.startedAt=st; save(); }
+}
+function fillDays(){
+  const sel=$('daySel'), res=(myDoc&&myDoc.results)||{};
+  sel.innerHTML=allDays().map(d=>`<option value="${d}"${d===DAY?' selected':''}>${d===TODAY?'Today':nice(d)} · #${dayIndex(d)+1}${res[d]?' ✓':''}</option>`).join('');
+}
+$('daySel').addEventListener('change',e=>loadDay(e.target.value));
+function loadDay(d){
+  clearInterval(timerId); DAY=d; $('doneCard').hidden=true; fillDays();
+  showVeil("Fetching the dogs…","Building the board.");
+  setTimeout(()=>{
+    puzzle=generate('sausagedoku:'+DAY);
+    state=lsGet(lsKey())||freshState(); syncFromServer();
+    buildBoard(); render();
+    if(state.finishedAt){ const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); }
+    else if(state.startedAt) startTimer();
+    updateVeil(); renderLB();
+  },30);
+}
+loadDay(TODAY);
+renderLB();
+
+(async()=>{
+  if(!window.claude||!window.claude.use){ return; }
+  try{ db=await claude.use('db'); user=await claude.use('user'); }catch(e){ db=null; }
+  if(!db||!user){ db=null; renderLB(); return; }
+  myId=await user.id();
+  if(!myId){ db=null; renderLB(); return; }
+  $('lb').innerHTML='<div class="empty">Loading scores…</div>';
+  db.collection('players').onSnapshot(snap=>{
+    players=snap.docs.map(d=>({id:d.id,data:d.data()||{}}));
+    const mine=players.find(p=>p.id===myId);
+    const first=!myDoc;
+    if(mine) myDoc=mine.data;
+    if(first&&mine&&puzzle&&state){ const had=state.finishedAt, hadStart=state.startedAt; syncFromServer();
+      if(state.finishedAt&&!had){ clearInterval(timerId); const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); render(); }
+      else if(state.startedAt&&!hadStart){ startTimer(); render(); } }
+    fillDays();
+    renderMe(); renderLB(); updateVeil();
+  }, err=>{ $('lbNote').className='note warn'; $('lbNote').textContent="Couldn't load the leaderboard just now. Refresh to try again."; });
+  updateVeil();
+})();
+})();
+</script>
+
+</body>
+</html>
