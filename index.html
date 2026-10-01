@@ -107,6 +107,8 @@ tr.me td{font-weight:800}
 .mini i.x{background:var(--dog)}
 .mini i.x::before{content:"";width:62%;height:62%;background:linear-gradient(45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%)}
 .mini i.d svg{width:92%;height:auto;filter:drop-shadow(0 0 1px var(--halo))}
+.awards{padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--gold) 16%,var(--panel));margin-bottom:10px;font-size:14px;display:grid;gap:2px}
+.awt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
 .done-card b{font-size:18px}
 </style>
@@ -458,28 +460,32 @@ function renderLB(){
       return {played:ds.length, wins:ds.filter(d=>dayWinners[d]&&dayWinners[d].includes(p.id)).length, best:sc.length?Math.min(...sc):null, avg:sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:null};};
     const rank=(a,b)=>b.wins-a.wins||(a.avg-b.avg);
     const thisWeek=weekOf(TODAY);
+    // weekly awards for completed weeks: winner gets a trophy, everyone else who played gets a wooden spoon
+    const weeks={}; Object.keys(days).forEach(d=>{const w=weekOf(d); if(w!==thisWeek) weeks[w]=1;});
+    const trophies={}, spoons={}, awards={};
+    Object.keys(weeks).sort().forEach(w=>{ const rs=named.map(p=>({id:p.id,name:p.data.name,...stats(p,d=>weekOf(d)===w)})).filter(x=>x.played).sort(rank); if(!rs.length)return;
+      const win=rs.filter(x=>x.wins===rs[0].wins&&x.avg===rs[0].avg), lose=rs.filter(x=>!win.includes(x));
+      win.forEach(x=>trophies[x.id]=(trophies[x.id]||0)+1); lose.forEach(x=>spoons[x.id]=(spoons[x.id]||0)+1);
+      awards[w]={win:win.map(x=>x.name),lose:lose.map(x=>x.name)}; });
     if(tab==='week'){
       const rows=named.map(p=>({p,...stats(p,d=>weekOf(d)===thisWeek)})).filter(x=>x.played).sort(rank);
       const mon=new Date(thisWeek+'T12:00:00Z'), sun=new Date(mon.getTime()+6*86400000), f=x=>x.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
-      let h=`<div class="note" style="margin:0 0 8px">Week of ${f(mon)} to ${f(sun)}</div>`;
+      const lastW=weekOf(prevDay(thisWeek)), la=awards[lastW];
+      let h=la?`<div class="awards"><div class="awt">Last week's awards</div><div>🏆 ${la.win.map(esc).join(', ')}</div>${la.lose.length?`<div>🥄 ${la.lose.map(esc).join(', ')}</div>`:''}</div>`:'';
+      h+=`<div class="note" style="margin:0 0 8px">Week of ${f(mon)} to ${f(sun)}</div>`;
       if(!rows.length){ box.innerHTML=h+'<div class="empty">No puzzles finished this week yet.</div>'; return; }
       h+='<table><thead><tr><th></th><th>Player</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Avg</th></tr></thead><tbody>';
       rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.wins}</b></td><td class="num">${x.played}</td><td class="num">${fmt(x.avg)}</td></tr>`;});
-      box.innerHTML=h+'</tbody></table><div class="note">Most daily wins takes the week; ties go to the lower average score. Today counts as it stands and the week closes Sunday at midnight.</div>';
+      box.innerHTML=h+'</tbody></table><div class="note">Most daily wins takes the week and a trophy 🏆; everyone else who played gets a wooden spoon 🥄. Ties go to the lower average score. The week closes Sunday at midnight.</div>';
     } else {
-      // weekly champions for completed weeks
-      const weeks={}; Object.keys(days).forEach(d=>{const w=weekOf(d); if(w!==thisWeek)(weeks[w]=weeks[w]||1);});
-      const weekWins={};
-      Object.keys(weeks).forEach(w=>{ const rs=named.map(p=>({id:p.id,...stats(p,d=>weekOf(d)===w)})).filter(x=>x.played).sort(rank); if(!rs.length)return;
-        rs.filter(x=>x.wins===rs[0].wins&&x.avg===rs[0].avg).forEach(x=>weekWins[x.id]=(weekWins[x.id]||0)+1); });
       const rows=named.map(p=>{const st=stats(p,d=>d!==TODAY); const all=stats(p,()=>true); const res=p.data.results||{};
         let streak=0, d=res[TODAY]?TODAY:prevDay(TODAY); while(res[d]){streak++; d=prevDay(d);}
-        return {p, weekly:weekWins[p.id]||0, daily:st.wins, played:all.played, best:all.best, avg:all.avg, streak};
+        return {p, weekly:trophies[p.id]||0, spoons:spoons[p.id]||0, daily:st.wins, played:all.played, best:all.best, avg:all.avg, streak};
       }).filter(x=>x.played).sort((a,b)=>b.weekly-a.weekly||b.daily-a.daily||(a.avg-b.avg));
       if(!rows.length){ box.innerHTML='<div class="empty">No finished puzzles yet. The overall league fills up as people play.</div>'; return; }
-      let h='<table><thead><tr><th></th><th>Player</th><th class="num">Weekly wins</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Streak</th><th class="num">Best</th></tr></thead><tbody>';
-      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num">${x.streak}</td><td class="num">${fmt(x.best)}</td></tr>`;});
-      box.innerHTML=h+'</tbody></table><div class="note">Ranked by weekly wins, then daily wins. Wins only count once a day or week has finished.</div>';
+      let h='<table><thead><tr><th></th><th>Player</th><th class="num" title="Weekly trophies">🏆</th><th class="num" title="Wooden spoons">🥄</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Streak</th><th class="num">Best</th></tr></thead><tbody>';
+      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.spoons}</td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num">${x.streak}</td><td class="num">${fmt(x.best)}</td></tr>`;});
+      box.innerHTML=h+'</tbody></table><div class="note">🏆 weekly trophies and 🥄 wooden spoons are handed out when each week closes on Sunday at midnight. Ranked by trophies, then daily wins.</div>';
     }
   }
 }
