@@ -15,7 +15,7 @@
 :root{
   --bg:#EEF1E8; --panel:#FBFCF8; --ink:#1F2A24; --muted:#5E6B63; --line:#D3DACB;
   --accent:#1D6A5C; --accent-ink:#FFFFFF; --warn:#C23A2B; --gold:#B8860B;
-  --halo:rgba(255,255,255,.55); --edge:#1F2A24; --thin:rgba(31,42,36,.22); --dog:#7B4524; --dog-dark:#3E1F0C; --mark:#7B867E;
+  --halo:rgba(255,255,255,.55); --tile:#D9CBB8; --edge:#1F2A24; --thin:rgba(31,42,36,.22); --dog:#7B4524; --dog-dark:#3E1F0C; --mark:#7B867E;
   --r0:#F6C9C0; --r1:#F8DFA6; --r2:#C9E3B0; --r3:#AFD8E0; --r4:#CFC4EC;
   --r5:#F3C6DD; --r6:#E2D2B6; --r7:#B9D4C2; --r8:#C7D1E6;
   --display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
@@ -24,13 +24,13 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
   --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
-  --halo:rgba(255,235,210,.45); --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
+  --halo:rgba(255,235,210,.45); --tile:#3A332B; --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
   --r0:#6B3A35; --r1:#6A5528; --r2:#3E5A31; --r3:#2D5560; --r4:#4A4170;
   --r5:#683650; --r6:#5C4C33; --r7:#2F5A43; --r8:#3A4664; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
   --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
-  --halo:rgba(255,235,210,.45); --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
+  --halo:rgba(255,235,210,.45); --tile:#3A332B; --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#8E9A92;
   --r0:#6B3A35; --r1:#6A5528; --r2:#3E5A31; --r3:#2D5560; --r4:#4A4170;
   --r5:#683650; --r6:#5C4C33; --r7:#2F5A43; --r8:#3A4664; color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
@@ -99,6 +99,15 @@ tr.me td{font-weight:800}
 .joinpane .namerow{width:100%;margin:0}
 .linkbtn{font:inherit;font-size:12px;background:none;border:0;padding:2px;color:var(--accent);text-decoration:underline;cursor:pointer}
 .linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.howto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+@media (max-width:520px){.howto{grid-template-columns:minmax(0,1fr)}}
+.rule{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--bg);min-width:0}
+.rule p{margin:0;font-weight:800;font-size:15px;line-height:1.25}
+.mini{display:grid;grid-template-columns:repeat(3,24px);grid-auto-rows:24px;gap:3px;flex:none}
+.mini i{border-radius:5px;background:var(--tile);display:flex;align-items:center;justify-content:center}
+.mini i.x{background:var(--dog)}
+.mini i.x::before{content:"";width:62%;height:62%;background:linear-gradient(45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%)}
+.mini i.d svg{width:92%;height:auto;filter:drop-shadow(0 0 1px var(--halo))}
 .done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
 .done-card b{font-size:18px}
 </style>
@@ -141,6 +150,11 @@ tr.me td{font-weight:800}
         </div>
       </div>
       <div id="doneCard" class="done-card" hidden></div>
+      <div class="howto" aria-label="How to play">
+        <div class="rule"><div class="mini" aria-hidden="true"><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="d"><svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg></i><i></i><i class="x"></i><i></i><i></i></div><p>1 sausage dog per colour</p></div>
+        <div class="rule"><div class="mini" aria-hidden="true"><i class="x"></i><i class="d"><svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg></i><i class="x"></i><i></i><i class="x"></i><i></i><i></i><i class="x"></i><i></i></div><p>1 per column and row</p></div>
+        <div class="rule"><div class="mini" aria-hidden="true"><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="d"><svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i></div><p>Dogs can't touch</p></div>
+      </div>
     </section>
 
     <aside class="panel" aria-label="Leaderboard">
