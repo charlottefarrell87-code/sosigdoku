@@ -243,7 +243,7 @@ function generate(seed){let best=null,found=0;
   return best;}
 
 // ---------- state ----------
-const lsKey=()=>'sosigdoku:v2:'+DAY;
+const lsKey=()=>'sosigdoku:v3:'+DAY;
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let puzzle=null, cells=[], state=null, timerId=null;
@@ -509,7 +509,7 @@ function loadDay(d){
   clearInterval(timerId); DAY=d; $('doneCard').hidden=true; fillDays();
   showVeil("Fetching the dogs…","Building the board.");
   setTimeout(()=>{
-    puzzle=generate('sausagedoku:'+DAY);
+    puzzle=generate('sosigdoku:v2:'+DAY);
     state=lsGet(lsKey())||freshState(); syncFromServer();
     buildBoard(); render();
     if(state.finishedAt){ const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); }
