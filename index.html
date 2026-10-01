@@ -56,10 +56,12 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .cell svg.x.bad{color:#C8352A;opacity:1}
 .cell svg.dogi{width:86%;height:auto;max-height:100%;filter:drop-shadow(0 0 1.5px var(--halo))}
 .cell.err{animation:shake .35s}
-.cell.hit svg.dogi{animation:pop .25s ease-out}
+.cell.hit svg.dogi{animation:dogIn .75s cubic-bezier(.2,.8,.3,1) both;transform-origin:50% 90%}
+.cell.hit::after{content:"";position:absolute;inset:18%;border-radius:50%;border:3px solid var(--dog);opacity:0;animation:ring .6s ease-out;pointer-events:none}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-@keyframes pop{0%{transform:scale(.4)}100%{transform:scale(1)}}
-@media (prefers-reduced-motion:reduce){.cell.err,.cell.hit svg.dogi{animation:none}}
+@keyframes dogIn{0%{transform:translateY(55%) scale(.2);opacity:0}45%{transform:translateY(-14%) scale(1.18);opacity:1}62%{transform:translateY(0) scale(.94,1.04)}74%{transform:rotate(-7deg)}86%{transform:rotate(5deg)}100%{transform:none}}
+@keyframes ring{0%{transform:scale(.4);opacity:.8}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.cell.err,.cell.hit svg.dogi,.cell.hit::after{animation:none}}
 .veil{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:color-mix(in srgb,var(--panel) 86%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:6px;text-align:center;padding:16px}
 .veil h2{font-family:var(--display);font-weight:400;font-size:28px;margin:0;text-wrap:balance}
 .veil p{margin:0;color:var(--muted);max-width:32ch}
