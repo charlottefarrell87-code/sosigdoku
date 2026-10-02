@@ -167,7 +167,7 @@ tr.me td{font-weight:800}
 .awt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .result{gap:10px}
 .rtitle{font-family:var(--display);font-size:24px;line-height:1.15;text-wrap:balance;max-width:24ch}
-.rscore{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.rscore{font-size:44px;margin-bottom:2px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .rstats{display:flex;gap:22px;justify-content:center}
 .rstats div{display:flex;flex-direction:column;align-items:center}
 .rstats span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
@@ -263,7 +263,7 @@ input,select,textarea{font-size:16px!important}
         <div class="veil result" id="result" hidden>
           <div class="rtitle" id="rTitle"></div>
           <div class="rscore" id="rScore"></div>
-          <div class="rstats"><div><span>Time</span><b id="rTime"></b></div><div><span>Mistakes</span><b id="rMis"></b></div><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div></div>
+          <div class="rstats"><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div><div id="rNextBox"><span>Next puzzle in</span><b class="nextcd" id="rNext"></b></div></div>
           <div class="ractions"><button class="btn" id="rLb">See the leaderboard</button><button type="button" class="ghost" id="rBoard">Show my board</button></div>
         </div>
       </div>
@@ -523,11 +523,28 @@ async function finish(){
   }
 }
 function showDone(ms,mistakes,score){
+  revealSolution();
   showResult(ms,mistakes,score);
   const c=$('doneCard'); c.hidden=false;
-  if(MODE==='practice'){ c.innerHTML=`Practice board done. <b>${fmt(score)}</b> <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>. Practice scores don't go on the leaderboard.`; c.insertAdjacentHTML('beforeend',' <button type="button" class="linkbtn" id="reopenRes">See result</button>'); $('reopenRes').onclick=()=>{ $('result').hidden=false; }; return; }
-  c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`; c.insertAdjacentHTML('beforeend',' <button type="button" class="linkbtn" id="reopenRes">See result</button>'); $('reopenRes').onclick=()=>{ $('result').hidden=false; };
+  const link=' <button type="button" class="linkbtn" id="reopenRes">See result</button>';
+  c.innerHTML = MODE==='practice' ? `Practice board done. Practice scores don't go on the leaderboard.${link}` : `Next Sosigdoku in <b class="nextcd">${untilMidnight()}</b>${link}`;
+  $('reopenRes').onclick=()=>{ $('result').hidden=false; };
 }
+function revealSolution(){
+  if(!puzzle||!state) return;
+  const dogs=state.marks.filter(m=>m===2).length;
+  if(dogs<N){ for(let r=0;r<N;r++) state.marks[r*N+puzzle.sol[r]]=2; render(); }
+}
+function untilMidnight(){
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const left=86400-((+p.hour)*3600+(+p.minute)*60+(+p.second));
+  const h=Math.floor(left/3600), m=Math.floor(left%3600/60), s=left%60;
+  return h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+setInterval(()=>{
+  const t=untilMidnight(); document.querySelectorAll('.nextcd').forEach(e=>e.textContent=t);
+  if(londonDate(new Date())!==TODAY && !(state&&state.startedAt&&!state.finishedAt)) location.reload();
+},1000);
 
 // ---------- players & leaderboard data (Supabase) ----------
 const online = !!(SUPABASE_URL && SUPABASE_KEY);
@@ -737,7 +754,7 @@ document.body.dataset.view='play';
 function showResult(ms,mistakes,score){
   const r=$('result'); r.hidden=false;
   $('rTitle').textContent= MODE==='practice' ? 'Practice board done' : (DAY===TODAY?"You have completed today's Sosig quiz":'You have completed the Sosig quiz for '+nice(DAY));
-  $('rScore').textContent=fmt(score); $('rTime').textContent=fmt(ms); $('rMis').textContent=mistakes;
+  $('rScore').textContent=fmt(score); $('rNext').textContent=untilMidnight(); $('rNextBox').hidden=MODE==='practice';
   $('rRankBox').hidden=MODE==='practice'; $('rLb').hidden=MODE==='practice';
   updateResultRank();
 }
