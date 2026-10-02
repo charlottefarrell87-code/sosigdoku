@@ -32,11 +32,10 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .daysel{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 12px;max-width:100%}
 .daysel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .modebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 16px}
-.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
-.seg button{font:inherit;font-weight:700;font-size:14px;border:0;background:none;color:var(--muted);border-radius:999px;padding:7px 14px;cursor:pointer}
-.seg.small button{font-size:12.5px;padding:6px 10px}
-.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.seg button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.seg{display:inline-flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .pctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .calwrap{position:relative}
 .daysel{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
