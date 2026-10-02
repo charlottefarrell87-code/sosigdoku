@@ -13,23 +13,14 @@
 <style>
 /* Layout: masthead, then board (left) + friends' leaderboard (right); stacks on phones. */
 :root{
-  --bg:#EEF1E8; --panel:#FBFCF8; --ink:#1F2A24; --muted:#5E6B63; --line:#D3DACB;
+  --bg:#FFFFFF; --panel:#F6F4F1; --ink:#1F2A24; --muted:#5E6B63; --line:#E4DFD8;
   --accent:#1D6A5C; --accent-ink:#FFFFFF; --warn:#C23A2B; --gold:#B8860B;
   --halo:rgba(255,255,255,.55); --tile:#D9CBB8; --edge:#1F2A24; --thin:rgba(31,42,36,.22); --dog:#7B4524; --dog-dark:#3E1F0C; --mark:#6B756E;
-  --r0:#FBDDD6; --r1:#FCEDC6; --r2:#DFF0CF; --r3:#CFE8EE; --r4:#E2DBF4; --r5:#F9DCEA; --r6:#EFE4D0; --r7:#D5E9DB; --r8:#DCE3F2;
+  --r0:#FFB4A2; --r1:#FFE08A; --r2:#C7EF8F; --r3:#9FDCF5; --r4:#C9B8FF; --r5:#FFB8DA; --r6:#FFCF99; --r7:#A8EFD0; --r8:#B3C7FF;
+  color-scheme:light;
   --display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
-  --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
-  --halo:rgba(255,235,210,.45); --tile:#3A332B; --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#3E4641;
-  --r0:#E3B1A8; --r1:#E6CD95; --r2:#B5D49A; --r3:#9CCBD5; --r4:#BFB3E3; --r5:#E2AFCB; --r6:#D6C4A2; --r7:#A8CFB5; --r8:#B5C2E0; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#141A17; --panel:#1C2420; --ink:#E8EDE6; --muted:#9DA9A1; --line:#2E3933;
-  --accent:#4FB7A2; --accent-ink:#0E1513; --warn:#FF7B6B; --gold:#E3B54A;
-  --halo:rgba(255,235,210,.45); --tile:#3A332B; --edge:#070A08; --thin:rgba(0,0,0,.38); --dog:#8C5630; --dog-dark:#3E1F0C; --mark:#3E4641;
-  --r0:#E3B1A8; --r1:#E6CD95; --r2:#B5D49A; --r3:#9CCBD5; --r4:#BFB3E3; --r5:#E2AFCB; --r6:#D6C4A2; --r7:#A8CFB5; --r8:#B5C2E0; color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 .wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:20px 40px}
 header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:18px}
