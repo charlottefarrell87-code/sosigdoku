@@ -31,6 +31,29 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .meta{display:flex;align-items:center;gap:8px}
 .daysel{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 12px;max-width:100%}
 .daysel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.calwrap{position:relative}
+.daysel{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.calpop{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(300px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 12px 32px rgba(40,30,20,.16);text-align:left;color:var(--ink)}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:15px}
+.calnav{font:inherit;font-size:20px;line-height:1;width:32px;height:32px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.calnav[disabled]{opacity:.3;cursor:default}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.calgrid .dow{font-size:11px;font-weight:600;color:var(--muted);text-align:center;padding:2px 0}
+.cday{position:relative;aspect-ratio:1;border-radius:9px;border:0;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center}
+.cday[disabled]{background:none;color:var(--line);cursor:default}
+.cday.sel{outline:2px solid var(--ink);outline-offset:-2px}
+.cday.today{background:color-mix(in srgb,var(--accent) 16%,var(--bg))}
+.cday .ico{position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}
+.cday .ico svg{width:9px;height:9px}
+.cday.done .ico{background:#2E9E5B}
+.cday.miss .ico{background:#E08A1E}
+.cday.done{background:color-mix(in srgb,#2E9E5B 14%,var(--bg))}
+.cday:focus-visible,.calnav:focus-visible,.daysel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.callegend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:var(--muted)}
+.callegend span{display:inline-flex;align-items:center;gap:5px}
+.cdot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.cdot.done{background:#2E9E5B}.cdot.miss{background:#E08A1E}.cdot.today{background:color-mix(in srgb,var(--accent) 40%,var(--bg))}
+
 .grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
@@ -110,7 +133,14 @@ tr.me td{font-weight:800}
       <svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg>
       <h1>Sosigdoku</h1>
     </div>
-    <div class="meta"><label for="daySel">Puzzle</label><select id="daySel" class="daysel"></select></div>
+    <div class="meta calwrap">
+      <button type="button" id="calBtn" class="daysel" aria-haspopup="dialog" aria-expanded="false" aria-controls="calPop"><svg viewBox="0 0 16 16" aria-hidden="true" width="15" height="15"><rect x="1.5" y="2.5" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 6.5h13M5 1v3M11 1v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span id="calLabel">Today</span></button>
+      <div id="calPop" class="calpop" role="dialog" aria-label="Choose a puzzle" hidden>
+        <div class="calhead"><button type="button" class="calnav" id="calPrev" aria-label="Previous month">‹</button><b id="calMonth"></b><button type="button" class="calnav" id="calNext" aria-label="Next month">›</button></div>
+        <div class="calgrid" id="calGrid"></div>
+        <div class="callegend"><span><i class="cdot done"></i>Completed</span><span><i class="cdot miss"></i>Missed</span><span><i class="cdot today"></i>Today</span></div>
+      </div>
+    </div>
   </header>
 
   <div class="grid2">
@@ -493,11 +523,39 @@ function syncFromServer(){
   if(r0&&!state.finishedAt){ state.startedAt=st||state.startedAt||(r0.at-r0.ms); state.finishedAt=state.startedAt+r0.ms; state.mistakes=r0.mistakes; save(); }
   else if(st&&!state.startedAt){ state.startedAt=st; save(); }
 }
-function fillDays(){
-  const sel=$('daySel'), res=(myDoc&&myDoc.results)||{};
-  sel.innerHTML=allDays().map(d=>`<option value="${d}"${d===DAY?' selected':''}>${d===TODAY?'Today':nice(d)} · #${dayIndex(d)+1}${res[d]?' ✓':''}</option>`).join('');
+function dayStatus(d){
+  const res=(myDoc&&myDoc.results)||{}, loc=lsGet(lsKeyFor(d));
+  if(res[d]||(loc&&loc.finishedAt)) return 'done';
+  if(d===TODAY) return 'today';
+  return 'miss';
 }
-$('daySel').addEventListener('change',e=>loadDay(e.target.value));
+function lsKeyFor(d){ const k=DAY; DAY=d; const out=lsKey(); DAY=k; return out; }
+let calMonth=TODAY.slice(0,7);
+const ICON={done:'<svg viewBox="0 0 10 10"><path d="M2 5.2 4.2 7.3 8 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            miss:'<svg viewBox="0 0 10 10"><path d="M5 2.2v3.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="5" cy="7.6" r="1" fill="currentColor"/></svg>'};
+function fillDays(){
+  $('calLabel').textContent=(DAY===TODAY?'Today':nice(DAY))+' · #'+(dayIndex(DAY)+1);
+  const [y,m]=calMonth.split('-').map(Number);
+  $('calMonth').textContent=new Date(Date.UTC(y,m-1,1)).toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
+  $('calPrev').disabled=calMonth<=EPOCH.slice(0,7); $('calNext').disabled=calMonth>=TODAY.slice(0,7);
+  const first=new Date(Date.UTC(y,m-1,1)), lead=(first.getUTCDay()+6)%7, days=new Date(Date.UTC(y,m,0)).getUTCDate();
+  let h=['M','T','W','T','F','S','S'].map(x=>`<div class="dow" aria-hidden="true">${x}</div>`).join('')+'<div></div>'.repeat(lead);
+  for(let i=1;i<=days;i++){
+    const d=`${calMonth}-${String(i).padStart(2,'0')}`, ok=d>=EPOCH&&d<=TODAY;
+    if(!ok){ h+=`<button type="button" class="cday" disabled aria-hidden="true" tabindex="-1">${i}</button>`; continue; }
+    const st=dayStatus(d), lab={done:'completed',miss:'missed',today:'today, not played yet'}[st];
+    h+=`<button type="button" class="cday ${st}${d===TODAY?' today':''}${d===DAY?' sel':''}" data-d="${d}" aria-label="${nice(d)}, ${lab}">${i}${ICON[st]?`<span class="ico">${ICON[st]}</span>`:''}</button>`;
+  }
+  $('calGrid').innerHTML=h;
+}
+function setCal(open){ $('calPop').hidden=!open; $('calBtn').setAttribute('aria-expanded',open); if(open){ calMonth=DAY.slice(0,7); fillDays(); } }
+$('calBtn').addEventListener('click',e=>{ e.stopPropagation(); setCal($('calPop').hidden); });
+$('calPrev').addEventListener('click',()=>{ const [y,m]=calMonth.split('-').map(Number); calMonth=new Date(Date.UTC(y,m-2,1)).toISOString().slice(0,7); fillDays(); });
+$('calNext').addEventListener('click',()=>{ const [y,m]=calMonth.split('-').map(Number); calMonth=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7); fillDays(); });
+$('calGrid').addEventListener('click',e=>{ const b=e.target.closest('.cday[data-d]'); if(!b)return; setCal(false); if(b.dataset.d!==DAY) loadDay(b.dataset.d); });
+document.addEventListener('click',e=>{ if(!$('calPop').hidden && !e.target.closest('.calwrap')) setCal(false); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('calPop').hidden){ setCal(false); $('calBtn').focus(); } });
+
 function loadDay(d){
   clearInterval(timerId); DAY=d; $('doneCard').hidden=true; fillDays();
   showVeil("Fetching the dogs…","Building the board.");
