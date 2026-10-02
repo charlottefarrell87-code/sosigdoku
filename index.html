@@ -288,7 +288,7 @@ input,select,textarea{font-size:16px!important}
         <div class="youline"><span>Playing as <b id="youName"></b></span><button class="ghost" id="renameBtn">Change name</button></div>
         <div class="namerow" id="renameRow" hidden style="margin:0"><input id="renameInput" maxlength="20" aria-label="New name"><button class="ghost" id="renameSave">Save</button><button class="ghost" id="renameCancel">Cancel</button></div>
         <div class="youline"><span>Your player code <b id="youCode" class="code"></b></span><button class="ghost" id="copyCode">Copy</button></div>
-        <div class="youhint">Use this code to play on another phone or computer. <button type="button" class="linkbtn" id="switchBtn">Not you? Switch player</button></div>
+        <div class="youhint">Use this code to play on another phone or computer.</div>
       </div>
     </aside>
     <section class="panel v-cal" id="calView" aria-label="Calendar">
@@ -581,7 +581,6 @@ function renderMe(){
   $('youRow').hidden=false; $('youName').textContent=me.name; $('youCode').textContent=prettyCode(me.key);
 }
 $('copyCode').addEventListener('click',async()=>{ const b=$('copyCode'); try{ await navigator.clipboard.writeText(prettyCode(me.key)); b.textContent='Copied'; }catch(e){ const r=document.createRange(); r.selectNodeContents($('youCode')); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent='Selected'; } setTimeout(()=>b.textContent='Copy',1500); });
-$('switchBtn').addEventListener('click',()=>{ setMe(null); myDoc=null; setJoinMode('code'); renderLB(); loadDay(DAY); });
 $('renameBtn').addEventListener('click',()=>{ $('renameRow').hidden=false; $('renameInput').value=me.name; $('renameInput').focus(); });
 $('renameCancel').addEventListener('click',()=>{ $('renameRow').hidden=true; });
 $('renameSave').addEventListener('click',async()=>{ const n=$('renameInput').value.trim(); if(!n)return;
