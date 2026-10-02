@@ -200,6 +200,11 @@ input,select,textarea{font-size:16px!important}
   .howto{gap:8px;margin-top:12px}
   .rule{padding:10px}
 }
+.board{-webkit-touch-callout:none}
+.cell.holding::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--dog);opacity:0;transform:scale(.3);animation:hold 450ms linear forwards;pointer-events:none}
+@keyframes hold{to{opacity:.35;transform:scale(1)}}
+.hint{margin:10px 0 0;text-align:center;font-size:13px;color:var(--muted)}
+.hint b{color:var(--ink)}
 .done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
 .done-card b{font-size:18px}
 </style>
@@ -269,6 +274,7 @@ input,select,textarea{font-size:16px!important}
         </div>
       </div>
       <div id="doneCard" class="done-card" hidden></div>
+      <p class="hint"><b>Tap</b> to mark or clear a ×. <b>Press and hold</b> to place a sosig.</p>
       <div class="howto" aria-label="How to play">
         <div class="rule"><div class="mini" aria-hidden="true"><i class="x"></i><i class="x"></i><i class="x"></i><i class="x"></i><i class="d"><svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg></i><i></i><i class="x"></i><i></i><i></i></div><p>1 sosig per colour</p></div>
         <div class="rule"><div class="mini" aria-hidden="true"><i class="x"></i><i class="d"><svg viewBox="0 0 48 26" aria-hidden="true"><use href="#dog"/></svg></i><i class="x"></i><i></i><i class="x"></i><i></i><i></i><i class="x"></i><i></i></div><p>1 per column and row</p></div>
@@ -420,31 +426,41 @@ function tryDog(i){
   if(puzzle.sol[r]===c){ state.marks[i]=2; cells[i].classList.remove('hit'); void cells[i].offsetWidth; cells[i].classList.add('hit'); }
   else { state.mistakes++; state.marks[i]=3; cells[i].classList.remove('err'); void cells[i].offsetWidth; cells[i].classList.add('err'); }
 }
-let lastTap={i:-1,t:0};
+const HOLD_MS=450;
 function tapCell(i){
   if(!playing())return;
-  const now=Date.now();
-  if(lastTap.i===i && now-lastTap.t<500) return; // ignore an accidental quick second tap on the same square
-  lastTap={i,t:now};
   const m=state.marks[i];
-  if(m===2||m===3)return; // correct dogs and known mistakes are locked in
-  if(m===0) state.marks[i]=1; else tryDog(i);
+  if(m===2||m===3)return; // correct sosigs and known mistakes are locked in
+  state.marks[i]= m===1 ? 0 : 1; // tap toggles a cross on and off
   afterMove();
+}
+function holdCell(i){
+  if(!playing())return;
+  const m=state.marks[i];
+  if(m===2||m===3)return;
+  try{ navigator.vibrate&&navigator.vibrate(15); }catch(e){}
+  tryDog(i); afterMove();
 }
 function afterMove(){ save(); render(); if(state.marks.filter(m=>m===2).length===N) finish(); }
 function playing(){ return state.startedAt && !state.finishedAt; }
 
-// pointer: tap to cycle, drag to mark
+// pointer: tap toggles a cross, press and hold places a sosig, drag marks lots
 let drag=null;
-$('board').addEventListener('pointerdown',e=>{ const el=e.target.closest('.cell'); if(!el||!playing())return; drag={start:+el.dataset.i,moved:false,setTo:null}; });
-$('board').addEventListener('pointermove',e=>{ if(!drag)return; const el=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell'); if(!el)return; const i=+el.dataset.i;
-  if(i!==drag.start||drag.moved){ if(!drag.moved){drag.moved=true; drag.setTo= state.marks[drag.start]===1?0:1; mark(drag.start);} mark(i);} });
+function clearHold(){ if(drag&&drag.timer){ clearTimeout(drag.timer); drag.timer=null; } cells.forEach(c=>c.classList.remove('holding')); }
+$('board').addEventListener('pointerdown',e=>{ const el=e.target.closest('.cell'); if(!el||!playing())return; const i=+el.dataset.i;
+  drag={start:i,moved:false,setTo:null,held:false,timer:null};
+  if(state.marks[i]!==2&&state.marks[i]!==3){ el.classList.add('holding'); drag.timer=setTimeout(()=>{ if(!drag||drag.moved)return; drag.held=true; clearHold(); holdCell(i); },HOLD_MS); } });
+$('board').addEventListener('pointermove',e=>{ if(!drag||drag.held)return; const el=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell'); if(!el)return; const i=+el.dataset.i;
+  if(i!==drag.start||drag.moved){ if(!drag.moved){clearHold(); drag.moved=true; drag.setTo= state.marks[drag.start]===1?0:1; mark(drag.start);} mark(i);} });
 function mark(i){ if(state.marks[i]===2||state.marks[i]===3)return; if(state.marks[i]!==drag.setTo){state.marks[i]=drag.setTo; render();} }
-window.addEventListener('pointerup',()=>{ if(!drag)return; const d=drag; drag=null; if(d.moved){save();} else tapCell(d.start); });
+window.addEventListener('pointerup',()=>{ if(!drag)return; clearHold(); const d=drag; drag=null; if(d.held)return; if(d.moved){save();} else tapCell(d.start); });
+window.addEventListener('pointercancel',()=>{ clearHold(); drag=null; });
+$('board').addEventListener('contextmenu',e=>e.preventDefault());
 $('board').addEventListener('keydown',e=>{ const el=e.target.closest('.cell'); if(!el)return; const i=+el.dataset.i; let j=null;
   if(e.key==='ArrowRight')j=i%N<N-1?i+1:i; if(e.key==='ArrowLeft')j=i%N>0?i-1:i; if(e.key==='ArrowDown')j=i+N<N*N?i+N:i; if(e.key==='ArrowUp')j=i-N>=0?i-N:i;
   if(j!==null){e.preventDefault();cells[j].focus();}
-  if(e.key==='Enter'||e.key===' '){e.preventDefault();tapCell(i);} });
+  if(e.key===' '){e.preventDefault();tapCell(i);}
+  if(e.key==='Enter'){e.preventDefault();holdCell(i);} });
 
 function save(){ if(MODE==='practice'){ lsSet('sosigdoku:practice',{seed:practice.seed,size:practice.size,state}); return; } lsSet(lsKey(),state); }
 
