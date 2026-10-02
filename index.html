@@ -36,6 +36,12 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .seg button{font:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:none;color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer}
 .seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .seg button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.mtabs{display:flex;width:100%;gap:0;border-bottom:1px solid var(--line)}
+.mtabs button{flex:1;font:inherit;font-weight:700;font-size:15px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);padding:10px 8px;cursor:pointer;border-radius:0}
+.mtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink);background:none}
+.mtabs button:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.modebar{flex-direction:column;align-items:stretch}
+.pctl{justify-content:space-between}
 .pctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .calwrap{position:relative}
 .daysel{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
@@ -213,7 +219,7 @@ input,select,textarea{font-size:16px!important}
     </div>
   </header>
   <div class="modebar v-play">
-    <div class="seg" role="tablist" aria-label="Board type">
+    <div class="mtabs" role="tablist" aria-label="Board type">
       <button type="button" role="tab" id="modeDaily" aria-selected="true">Daily board</button>
       <button type="button" role="tab" id="modePractice" aria-selected="false">Practice</button>
     </div>
