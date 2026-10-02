@@ -264,7 +264,7 @@ input,select,textarea{font-size:16px!important}
           <div class="rtitle" id="rTitle"></div>
           <div class="rscore" id="rScore"></div>
           <div class="rstats"><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div><div id="rNextBox"><span>Next puzzle in</span><b class="nextcd" id="rNext"></b></div></div>
-          <div class="ractions"><button class="btn" id="rLb">See the leaderboard</button><button type="button" class="ghost" id="rBoard">Show my board</button></div>
+          <div class="ractions"><button class="btn" id="rLb">See the leaderboard</button></div>
         </div>
       </div>
       <div id="doneCard" class="done-card" hidden></div>
@@ -526,9 +526,8 @@ function showDone(ms,mistakes,score){
   revealSolution();
   showResult(ms,mistakes,score);
   const c=$('doneCard'); c.hidden=false;
-  const link=' <button type="button" class="linkbtn" id="reopenRes">See result</button>';
+  const link='';
   c.innerHTML = MODE==='practice' ? `Practice board done. Practice scores don't go on the leaderboard.${link}` : `Next Sosigdoku in <b class="nextcd">${untilMidnight()}</b>${link}`;
-  $('reopenRes').onclick=()=>{ $('result').hidden=false; };
 }
 function revealSolution(){
   if(!puzzle||!state) return;
@@ -767,7 +766,6 @@ function updateResultRank(){
   $('rRankBox').hidden=i<0;
 }
 function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
-$('rBoard').addEventListener('click',()=>{ $('result').hidden=true; });
 $('rLb').addEventListener('click',()=>{ setTab('today'); if(matchMedia('(max-width:760px)').matches) setView('lb'); else document.querySelector('aside.v-lb').scrollIntoView({behavior:'smooth',block:'start'}); });
 
 function loadDay(d){
