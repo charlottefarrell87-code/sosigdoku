@@ -263,7 +263,7 @@ input,select,textarea{font-size:16px!important}
         <div class="veil result" id="result" hidden>
           <div class="rtitle" id="rTitle"></div>
           <div class="rscore" id="rScore"></div>
-          <div class="rstats"><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div><div id="rNextBox"><span>Next puzzle in</span><b class="nextcd" id="rNext"></b></div></div>
+          <div class="rstats"><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div></div>
           <div class="ractions"><button class="btn" id="rLb">See the leaderboard</button></div>
         </div>
       </div>
@@ -753,7 +753,7 @@ document.body.dataset.view='play';
 function showResult(ms,mistakes,score){
   const r=$('result'); r.hidden=false;
   $('rTitle').textContent= MODE==='practice' ? 'Practice board done' : (DAY===TODAY?"You have completed today's Sosig quiz":'You have completed the Sosig quiz for '+nice(DAY));
-  $('rScore').textContent=fmt(score); $('rNext').textContent=untilMidnight(); $('rNextBox').hidden=MODE==='practice';
+  $('rScore').textContent=fmt(score);
   $('rRankBox').hidden=MODE==='practice'; $('rLb').hidden=MODE==='practice';
   updateResultRank();
 }
