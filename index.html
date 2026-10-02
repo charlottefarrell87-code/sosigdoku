@@ -31,6 +31,13 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .meta{display:flex;align-items:center;gap:8px}
 .daysel{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 12px;max-width:100%}
 .daysel:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.modebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin:-4px 0 16px}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{font:inherit;font-weight:700;font-size:14px;border:0;background:none;color:var(--muted);border-radius:999px;padding:7px 14px;cursor:pointer}
+.seg.small button{font-size:12.5px;padding:6px 10px}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.pctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .calwrap{position:relative}
 .daysel{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
 .calpop{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(300px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 12px 32px rgba(40,30,20,.16);text-align:left;color:var(--ink)}
@@ -142,6 +149,20 @@ tr.me td{font-weight:800}
       </div>
     </div>
   </header>
+  <div class="modebar">
+    <div class="seg" role="tablist" aria-label="Board type">
+      <button type="button" role="tab" id="modeDaily" aria-selected="true">Daily board</button>
+      <button type="button" role="tab" id="modePractice" aria-selected="false">Practice</button>
+    </div>
+    <div class="pctl" id="practiceCtl" hidden>
+      <div class="seg small" role="group" aria-label="Practice size">
+        <button type="button" data-size="6" aria-pressed="false">Easy 6×6</button>
+        <button type="button" data-size="8" aria-pressed="false">Medium 8×8</button>
+        <button type="button" data-size="9" aria-pressed="true">Hard 9×9</button>
+      </div>
+      <button type="button" class="ghost" id="newPractice">New board</button>
+    </div>
+  </div>
 
   <div class="grid2">
     <section class="panel" aria-label="Today's puzzle">
@@ -222,7 +243,7 @@ tr.me td{font-weight:800}
 const SUPABASE_URL = 'https://ogyidtomuajcbsqlkviy.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_faSQI_E2Y_aRDvbT0PwxXg_PUYITPb_';
 // -------------------------------------------------------------------------------------------------
-const N = 9, PENALTY = 30000, EPOCH = '2026-10-01';
+let N = 9; const PENALTY = 30000, EPOCH = '2026-10-01';
 // ---------- date ----------
 function londonDate(d){ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).format(d); }
 const TODAY = londonDate(new Date());
@@ -339,7 +360,7 @@ $('board').addEventListener('keydown',e=>{ const el=e.target.closest('.cell'); i
   if(j!==null){e.preventDefault();cells[j].focus();}
   if(e.key==='Enter'||e.key===' '){e.preventDefault();tapCell(i);} });
 
-function save(){ lsSet(lsKey(),state); }
+function save(){ if(MODE==='practice'){ lsSet('sosigdoku:practice',{seed:practice.seed,size:practice.size,state}); return; } lsSet(lsKey(),state); }
 
 // ---------- confetti ----------
 function confetti(){
@@ -370,13 +391,14 @@ function showVeil(title,text,{start=false,name=false}={}){ $('veil').hidden=fals
 function updateVeil(){
   if(!puzzle) return;
   if(state.finishedAt||state.startedAt){ $('veil').hidden=true; return; }
+  if(MODE==='practice'){ showVeil('Practice board','Just for fun. Nothing here counts towards the leaderboard.',{start:true}); return; }
   const needJoin = online && !me;
   showVeil(DAY===TODAY?'Ready when you are':'Catching up on '+nice(DAY),'The clock starts as soon as you tap. You get one go at each puzzle, so make it count.',{start:true,name:needJoin});
 }
 function veilError(msg){ $('veilText').textContent=msg; $('startBtn').disabled=false; }
 $('startBtn').addEventListener('click',async()=>{
   const btn=$('startBtn');
-  if(online && !me){
+  if(MODE!=='practice' && online && !me){
     btn.disabled=true;
     try{
       if(joinMode==='new'){
@@ -398,14 +420,14 @@ $('startBtn').addEventListener('click',async()=>{
   }
   state.startedAt=Date.now(); save();
   $('veil').hidden=true; startTimer(); render();
-  if(me){ try{ const st=await rpc('start_play',{p_key:me.key,p_day:DAY}); const t=Date.parse(st); if(t && t<state.startedAt-5000){ state.startedAt=t; save(); tick(); } refresh(); }catch(e){ lbWarn("Your start wasn't saved to the leaderboard. Keep playing; we'll try again when you finish."); } }
+  if(me && MODE!=='practice'){ try{ const st=await rpc('start_play',{p_key:me.key,p_day:DAY}); const t=Date.parse(st); if(t && t<state.startedAt-5000){ state.startedAt=t; save(); tick(); } refresh(); }catch(e){ lbWarn("Your start wasn't saved to the leaderboard. Keep playing; we'll try again when you finish."); } }
 });
 function startTimer(){ clearInterval(timerId); timerId=setInterval(tick,250); }
 async function finish(){
   state.finishedAt=Date.now(); save(); clearInterval(timerId); tick(); confetti();
   const ms=state.finishedAt-state.startedAt, score=ms+state.mistakes*PENALTY;
   showDone(ms,state.mistakes,score); fillDays();
-  if(me){
+  if(me && MODE!=='practice'){
     try{
       await rpc('start_play',{p_key:me.key,p_day:DAY}); // makes sure a start exists
       const r=(await rpc('finish_play',{p_key:me.key,p_day:DAY,p_mistakes:state.mistakes,p_client_ms:ms}))[0];
@@ -416,6 +438,7 @@ async function finish(){
 }
 function showDone(ms,mistakes,score){
   const c=$('doneCard'); c.hidden=false;
+  if(MODE==='practice'){ c.innerHTML=`Practice board done. <b>${fmt(score)}</b> <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>. Practice scores don't go on the leaderboard.`; return; }
   c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`;
 }
 
@@ -444,7 +467,7 @@ async function refresh(){
     players=Object.values(byId);
     $('lbNote').textContent='';
     if(me){ const mine=byId[me.id]; if(mine){ myDoc=mine.data; if(mine.data.name!==me.name) setMe({...me,name:mine.data.name}); } else { setMe(null); myDoc=null; } }
-    if(puzzle&&state){ const had=state.finishedAt, hadStart=state.startedAt; syncFromServer();
+    if(puzzle&&state&&MODE!=='practice'){ const had=state.finishedAt, hadStart=state.startedAt; syncFromServer();
       if(state.finishedAt&&!had){ clearInterval(timerId); const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); render(); }
       else if(state.startedAt&&!hadStart){ startTimer(); render(); } }
     fillDays(); renderMe(); renderLB(); updateVeil();
@@ -518,6 +541,7 @@ $('tabToday').addEventListener('click',()=>setTab('today')); $('tabWeek').addEve
 
 // ---------- boot ----------
 function syncFromServer(){
+  if(MODE==='practice') return;
   const r0=myDoc&&myDoc.results&&myDoc.results[DAY], st=myDoc&&myDoc.started&&myDoc.started[DAY];
   if(!state)return;
   if(r0&&!state.finishedAt){ state.startedAt=st||state.startedAt||(r0.at-r0.ms); state.finishedAt=state.startedAt+r0.ms; state.mistakes=r0.mistakes; save(); }
@@ -556,8 +580,37 @@ $('calGrid').addEventListener('click',e=>{ const b=e.target.closest('.cday[data-
 document.addEventListener('click',e=>{ if(!$('calPop').hidden && !e.target.closest('.calwrap')) setCal(false); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('calPop').hidden){ setCal(false); $('calBtn').focus(); } });
 
+// ---------- practice boards ----------
+let MODE='daily', practice=null; // practice: {seed,size}
+function setModeUI(){
+  $('modeDaily').setAttribute('aria-selected',MODE==='daily'); $('modePractice').setAttribute('aria-selected',MODE==='practice');
+  $('practiceCtl').hidden=MODE!=='practice'; document.querySelector('.calwrap').hidden=MODE==='practice';
+  document.querySelectorAll('#practiceCtl [data-size]').forEach(b=>b.setAttribute('aria-pressed',practice&&+b.dataset.size===practice.size));
+}
+function loadPractice(size,fresh){
+  clearInterval(timerId); MODE='practice'; $('doneCard').hidden=true;
+  const saved=lsGet('sosigdoku:practice');
+  if(!fresh && saved && saved.seed && (!size||saved.size===size)) practice={seed:saved.seed,size:saved.size};
+  else practice={seed:Math.random().toString(36).slice(2,10),size:size||(saved&&saved.size)||9};
+  setModeUI();
+  showVeil("Fetching the dogs…","Building a practice board.");
+  setTimeout(()=>{
+    N=practice.size; puzzle=generate('practice:'+practice.size+':'+practice.seed);
+    const st=saved&&saved.seed===practice.seed&&saved.state;
+    state=st||freshState(); save();
+    buildBoard(); render();
+    if(state.finishedAt){ const ms=state.finishedAt-state.startedAt; showDone(ms,state.mistakes,ms+state.mistakes*PENALTY); }
+    else if(state.startedAt) startTimer();
+    updateVeil();
+  },30);
+}
+$('modeDaily').addEventListener('click',()=>{ if(MODE!=='daily'){ MODE='daily'; setModeUI(); loadDay(DAY); } });
+$('modePractice').addEventListener('click',()=>{ if(MODE!=='practice') loadPractice(); });
+$('newPractice').addEventListener('click',()=>loadPractice(practice?practice.size:9,true));
+document.querySelectorAll('#practiceCtl [data-size]').forEach(b=>b.addEventListener('click',()=>loadPractice(+b.dataset.size,true)));
+
 function loadDay(d){
-  clearInterval(timerId); DAY=d; $('doneCard').hidden=true; fillDays();
+  clearInterval(timerId); DAY=d; MODE='daily'; N=9; setModeUI(); $('doneCard').hidden=true; fillDays();
   showVeil("Fetching the dogs…","Building the board.");
   setTimeout(()=>{
     puzzle=generate('sosigdoku:v2:'+DAY);
