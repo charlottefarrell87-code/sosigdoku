@@ -150,15 +150,26 @@ tr.me td{font-weight:800}
 .linkbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .howto{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
 @media (max-width:520px){.howto{grid-template-columns:minmax(0,1fr)}}
-.rule{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--bg);min-width:0}
-.rule p{margin:0;font-weight:700;font-size:12.5px;line-height:1.3}
-.mini{display:grid;grid-template-columns:repeat(3,20px);grid-auto-rows:20px;gap:3px;flex:none}
+.rule{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--bg);min-width:0}
+.rule p{margin:0;font-weight:800;font-size:16px;line-height:1.3}
+.mini{display:grid;grid-template-columns:repeat(3,24px);grid-auto-rows:24px;gap:3px;flex:none}
 .mini i{border-radius:5px;background:var(--tile);display:flex;align-items:center;justify-content:center}
 .mini i.x{background:var(--dog)}
 .mini i.x::before{content:"";width:62%;height:62%;background:linear-gradient(45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,#fff 42%,#fff 58%,transparent 58%)}
 .mini i.d svg{width:92%;height:auto;filter:drop-shadow(0 0 1px var(--halo))}
 .awards{padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--gold) 16%,var(--panel));margin-bottom:10px;font-size:14px;display:grid;gap:2px}
 .awt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.result{gap:10px}
+.rtitle{font-family:var(--display);font-size:24px;line-height:1.15;text-wrap:balance;max-width:24ch}
+.rscore{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.rstats{display:flex;gap:22px;justify-content:center}
+.rstats div{display:flex;flex-direction:column;align-items:center}
+.rstats span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.rstats b{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.ractions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:4px}
+.done-card .linkbtn{font-size:13px;margin-left:4px}
+html,body{overflow-x:clip}
+@media (max-width:520px){ td,th{padding-left:4px;padding-right:4px} .hide-sm{display:none} }
 .done-card{margin-top:12px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));font-size:14px}
 .done-card b{font-size:18px}
 </style>
@@ -219,6 +230,12 @@ tr.me td{font-weight:800}
             </div>
           </div>
           <button class="btn" id="startBtn" hidden>Start the clock</button>
+        </div>
+        <div class="veil result" id="result" hidden>
+          <div class="rtitle" id="rTitle"></div>
+          <div class="rscore" id="rScore"></div>
+          <div class="rstats"><div><span>Time</span><b id="rTime"></b></div><div><span>Mistakes</span><b id="rMis"></b></div><div id="rRankBox"><span>Today</span><b id="rRank">–</b></div></div>
+          <div class="ractions"><button class="btn" id="rLb">See the leaderboard</button><button type="button" class="ghost" id="rBoard">Show my board</button></div>
         </div>
       </div>
       <div id="doneCard" class="done-card" hidden></div>
@@ -477,9 +494,10 @@ async function finish(){
   }
 }
 function showDone(ms,mistakes,score){
+  showResult(ms,mistakes,score);
   const c=$('doneCard'); c.hidden=false;
-  if(MODE==='practice'){ c.innerHTML=`Practice board done. <b>${fmt(score)}</b> <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>. Practice scores don't go on the leaderboard.`; return; }
-  c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`;
+  if(MODE==='practice'){ c.innerHTML=`Practice board done. <b>${fmt(score)}</b> <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>. Practice scores don't go on the leaderboard.`; c.insertAdjacentHTML('beforeend',' <button type="button" class="linkbtn" id="reopenRes">See result</button>'); $('reopenRes').onclick=()=>{ $('result').hidden=false; }; return; }
+  c.innerHTML=`${DAY===TODAY?"You have completed today's Sosig quiz.":'You have completed the Sosig quiz for '+nice(DAY)+'.'} <b>${fmt(score)}</b> score <span style="color:var(--muted)">(${fmt(ms)} + ${mistakes} mistake${mistakes===1?'':'s'} × 30s)</span>${DAY===TODAY?'. New puzzle at midnight.':'.'}`; c.insertAdjacentHTML('beforeend',' <button type="button" class="linkbtn" id="reopenRes">See result</button>'); $('reopenRes').onclick=()=>{ $('result').hidden=false; };
 }
 
 // ---------- players & leaderboard data (Supabase) ----------
@@ -527,6 +545,7 @@ $('renameSave').addEventListener('click',async()=>{ const n=$('renameInput').val
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function renderLB(){
   try{ renderCalView(); }catch(e){}
+  try{ updateResultRank(); }catch(e){}
   const box=$('lb');
   if(!online){ box.innerHTML='<div class="empty">The leaderboard isn\'t set up yet. You can still play the puzzle.</div>'; return; }
   const named=players.filter(p=>p.data&&p.data.name);
@@ -570,8 +589,8 @@ function renderLB(){
         return {p, weekly:trophies[p.id]||0, spoons:spoons[p.id]||0, daily:st.wins, played:all.played, best:all.best, avg:all.avg, streak};
       }).filter(x=>x.played).sort((a,b)=>b.weekly-a.weekly||b.daily-a.daily||(a.avg-b.avg));
       if(!rows.length){ box.innerHTML='<div class="empty">No finished puzzles yet. The overall league fills up as people play.</div>'; return; }
-      let h='<table><thead><tr><th></th><th>Player</th><th class="num" title="Weekly trophies">🏆</th><th class="num" title="Wooden spoons">🥄</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Streak</th><th class="num">Best</th></tr></thead><tbody>';
-      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.spoons}</td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num">${x.streak}</td><td class="num">${fmt(x.best)}</td></tr>`;});
+      let h='<table><thead><tr><th></th><th>Player</th><th class="num" title="Weekly trophies">🏆</th><th class="num" title="Wooden spoons">🥄</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num hide-sm">Streak</th><th class="num hide-sm">Best</th></tr></thead><tbody>';
+      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.spoons}</td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num hide-sm">${x.streak}</td><td class="num hide-sm">${fmt(x.best)}</td></tr>`;});
       box.innerHTML=h+'</tbody></table><div class="note">🏆 weekly trophies and 🥄 wooden spoons are handed out when each week closes on Sunday at midnight. Ranked by trophies, then daily wins.</div>';
     }
   }
@@ -629,7 +648,7 @@ function setModeUI(){
   document.querySelectorAll('#practiceCtl [data-size]').forEach(b=>b.setAttribute('aria-pressed',practice&&+b.dataset.size===practice.size));
 }
 function loadPractice(size,fresh){
-  clearInterval(timerId); MODE='practice'; $('doneCard').hidden=true;
+  clearInterval(timerId); MODE='practice'; $('doneCard').hidden=true; $('result').hidden=true;
   const saved=lsGet('sosigdoku:practice');
   if(!fresh && saved && saved.seed && (!size||saved.size===size)) practice={seed:saved.seed,size:saved.size};
   else practice={seed:Math.random().toString(36).slice(2,10),size:size||(saved&&saved.size)||9};
@@ -686,8 +705,27 @@ $('cvNext').addEventListener('click',()=>{ const [y,m]=cvMonth.split('-').map(Nu
 $('cvGrid').addEventListener('click',e=>{ const b=e.target.closest('.cday[data-d]'); if(!b)return; cvDay=b.dataset.d; renderCalView(); });
 document.body.dataset.view='play';
 
+function showResult(ms,mistakes,score){
+  const r=$('result'); r.hidden=false;
+  $('rTitle').textContent= MODE==='practice' ? 'Practice board done' : (DAY===TODAY?"You have completed today's Sosig quiz":'You have completed the Sosig quiz for '+nice(DAY));
+  $('rScore').textContent=fmt(score); $('rTime').textContent=fmt(ms); $('rMis').textContent=mistakes;
+  $('rRankBox').hidden=MODE==='practice'; $('rLb').hidden=MODE==='practice';
+  updateResultRank();
+}
+function updateResultRank(){
+  if(!$('rRank')||MODE==='practice') return;
+  const done=(players||[]).filter(p=>p.data&&p.data.name&&p.data.results&&p.data.results[DAY]).sort((a,b)=>a.data.results[DAY].score-b.data.results[DAY].score);
+  const i=done.findIndex(p=>p.id===myId);
+  $('rRankBox').querySelector('span').textContent=DAY===TODAY?'Today':'That day';
+  $('rRank').textContent= i<0 ? '–' : (i===0?'🏆 1st':ordinal(i+1))+' of '+done.length;
+  $('rRankBox').hidden=i<0;
+}
+function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+$('rBoard').addEventListener('click',()=>{ $('result').hidden=true; });
+$('rLb').addEventListener('click',()=>{ setTab('today'); if(matchMedia('(max-width:760px)').matches) setView('lb'); else document.querySelector('aside.v-lb').scrollIntoView({behavior:'smooth',block:'start'}); });
+
 function loadDay(d){
-  clearInterval(timerId); DAY=d; MODE='daily'; N=9; setModeUI(); $('doneCard').hidden=true; fillDays();
+  clearInterval(timerId); DAY=d; MODE='daily'; N=9; setModeUI(); $('doneCard').hidden=true; $('result').hidden=true; fillDays();
   showVeil("Fetching the dogs…","Building the board.");
   setTimeout(()=>{
     puzzle=generate('sosigdoku:v2:'+DAY);
