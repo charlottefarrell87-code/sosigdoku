@@ -40,10 +40,10 @@ header.mast{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spa
 .stat b{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
 .stat b.bad{color:var(--warn)}
 .boardbox{position:relative}
-.board{display:grid;width:100%;aspect-ratio:1;max-width:100%;border:0;border-radius:6px;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--panel)}
-.cell{touch-action:manipulation;position:relative;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0;padding:0;margin:0;font:inherit;color:var(--mark)}
+.board{display:grid;gap:clamp(3px,1.1vw,7px);width:100%;aspect-ratio:1;max-width:100%;border:0;user-select:none;-webkit-user-select:none;touch-action:none;background:var(--panel)}
+.cell{touch-action:manipulation;position:relative;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0;padding:0;margin:0;font:inherit;color:var(--mark);border-radius:clamp(4px,1.4vw,9px);box-shadow:inset 0 -2px 0 rgba(0,0,0,.06)}
 .cell:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;z-index:2}
-.cell svg.x{position:absolute;inset:0;width:100%;height:100%;opacity:.6}
+.cell svg.x{position:absolute;inset:12%;width:76%;height:76%;opacity:.6}
 .cell svg.x.bad{color:#C8352A;opacity:1}
 .cell svg.dogi{width:86%;height:auto;max-height:100%;filter:drop-shadow(0 0 1.5px var(--halo))}
 .cell.err{animation:shake .35s}
@@ -252,8 +252,6 @@ function buildBoard(){
     const el=document.createElement('button'); el.className='cell'; el.type='button'; el.dataset.i=r*N+c;
     el.setAttribute('aria-label',`Row ${r+1}, column ${c+1}`);
     el.style.background=`var(--r${g[r][c]})`;
-    el.style.borderTop = r>0 ? (g[r-1][c]!==g[r][c]?bw:tw) : '0';
-    el.style.borderLeft= c>0 ? (g[r][c-1]!==g[r][c]?bw:tw) : '0';
     b.appendChild(el); cells.push(el);
   }
 }
