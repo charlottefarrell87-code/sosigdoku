@@ -278,8 +278,7 @@ input,select,textarea{font-size:16px!important}
     <aside class="panel v-lb" aria-label="Leaderboard">
       <h3>Leaderboard</h3>
       <div class="tabs" role="tablist">
-        <button role="tab" id="tabToday" aria-selected="true">Daily</button>
-        <button role="tab" id="tabWeek" aria-selected="false">This week</button>
+        <button role="tab" id="tabWeek" aria-selected="true">This week</button>
         <button role="tab" id="tabAll" aria-selected="false">Overall</button>
       </div>
       <div class="tablebox" id="lb"><div class="empty">Loading scores…</div></div>
@@ -375,7 +374,7 @@ const lsKey=()=>'sosigdoku:v3:'+DAY;
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 let puzzle=null, cells=[], state=null, timerId=null;
-let myId=null, myDoc=null, players=[], tab='today';
+let weekRowsCache=null, myId=null, myDoc=null, players=[], tab='week';
 const $=id=>document.getElementById(id);
 const fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');};
 
@@ -590,26 +589,16 @@ $('renameSave').addEventListener('click',async()=>{ const n=$('renameInput').val
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function renderLB(){
   try{ renderCalView(); }catch(e){}
-  try{ updateResultRank(); }catch(e){}
   const box=$('lb');
   if(!online){ box.innerHTML='<div class="empty">The leaderboard isn\'t set up yet. You can still play the puzzle.</div>'; return; }
   const named=players.filter(p=>p.data&&p.data.name);
-  if(tab==='today'){
-    const done=named.filter(p=>p.data.results&&p.data.results[DAY]).sort((a,b)=>a.data.results[DAY].score-b.data.results[DAY].score);
-    const going=named.filter(p=>!(p.data.results&&p.data.results[DAY])&&p.data.started&&p.data.started[DAY]);
-    const head=`<div class="note" style="margin:0 0 8px">${DAY===TODAY?'Today':nice(DAY)} · puzzle #${dayIndex(DAY)+1}</div>`;
-    if(!done.length&&!going.length){ box.innerHTML=head+'<div class="empty">Nobody has finished this puzzle yet. First on the board sets the time to beat.</div>'; return; }
-    let h=head+'<table><thead><tr><th></th><th>Player</th><th class="num">Time</th><th class="num">Mistakes</th><th class="num">Score</th></tr></thead><tbody>';
-    done.forEach((p,i)=>{const r=p.data.results[DAY]; h+=`<tr class="${p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(p.data.name)}</td><td class="num">${fmt(r.ms)}</td><td class="num">${r.mistakes}</td><td class="num"><b>${fmt(r.score)}</b></td></tr>`;});
-    going.forEach(p=>{h+=`<tr class="${p.id===myId?'me':''}"><td class="rank">–</td><td>${esc(p.data.name)}</td><td class="num" colspan="3"><span class="pill">Still sniffing about</span></td></tr>`;});
-    box.innerHTML=h+'</tbody></table>';
-  } else {
+  {
     // daily winners (lowest score; ties share the win)
     const days={}; named.forEach(p=>Object.entries(p.data.results||{}).forEach(([d,r])=>{(days[d]=days[d]||[]).push({id:p.id,score:r.score});}));
     const dayWinners={}; Object.entries(days).forEach(([d,arr])=>{ const best=Math.min(...arr.map(x=>x.score)); dayWinners[d]=arr.filter(x=>x.score===best).map(x=>x.id); });
     const stats=(p,filter)=>{const res=p.data.results||{}; const ds=Object.keys(res).filter(filter); const sc=ds.map(d=>res[d].score);
       return {played:ds.length, wins:ds.filter(d=>dayWinners[d]&&dayWinners[d].includes(p.id)).length, best:sc.length?Math.min(...sc):null, avg:sc.length?sc.reduce((a,b)=>a+b,0)/sc.length:null};};
-    const rank=(a,b)=>b.wins-a.wins||(a.avg-b.avg);
+    const rank=(a,b)=>b.wins-a.wins||((a.avg??Infinity)-(b.avg??Infinity))||String(a.name||'').localeCompare(String(b.name||''));
     const thisWeek=weekOf(TODAY);
     // weekly awards for completed weeks: winner gets a trophy, everyone else who played gets a wooden spoon
     const weeks={}; Object.keys(days).forEach(d=>{const w=weekOf(d); if(w!==thisWeek) weeks[w]=1;});
@@ -618,15 +607,17 @@ function renderLB(){
       const win=rs.filter(x=>x.wins===rs[0].wins&&x.avg===rs[0].avg), lose=rs.filter(x=>!win.includes(x));
       win.forEach(x=>trophies[x.id]=(trophies[x.id]||0)+1); lose.forEach(x=>spoons[x.id]=(spoons[x.id]||0)+1);
       awards[w]={win:win.map(x=>x.name),lose:lose.map(x=>x.name)}; });
+    const weekRows=named.filter(p=>Object.keys(p.data.results||{}).length).map(p=>({p,name:p.data.name,...stats(p,d=>weekOf(d)===thisWeek)})).sort(rank);
+    weekRowsCache=weekRows; try{ updateResultRank(); }catch(e){}
     if(tab==='week'){
-      const rows=named.map(p=>({p,...stats(p,d=>weekOf(d)===thisWeek)})).filter(x=>x.played).sort(rank);
+      const rows=weekRows;
       const mon=new Date(thisWeek+'T12:00:00Z'), sun=new Date(mon.getTime()+6*86400000), f=x=>x.toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
       const lastW=weekOf(prevDay(thisWeek)), la=awards[lastW];
       let h=la?`<div class="awards"><div class="awt">Last week's awards</div><div>🏆 ${la.win.map(esc).join(', ')}</div>${la.lose.length?`<div>🥄 ${la.lose.map(esc).join(', ')}</div>`:''}</div>`:'';
       h+=`<div class="note" style="margin:0 0 8px">Week of ${f(mon)} to ${f(sun)}</div>`;
-      if(!rows.length){ box.innerHTML=h+'<div class="empty">No puzzles finished this week yet.</div>'; return; }
-      h+='<table><thead><tr><th></th><th>Player</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num">Avg</th></tr></thead><tbody>';
-      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.wins}</b></td><td class="num">${x.played}</td><td class="num">${fmt(x.avg)}</td></tr>`;});
+      if(!rows.length){ box.innerHTML=h+'<div class="empty">No puzzles finished yet. Everyone who plays shows up here.</div>'; return; }
+      h+='<table><thead><tr><th></th><th>Player</th><th class="num">Daily wins</th><th class="num">Days played</th><th class="num">Avg</th></tr></thead><tbody>';
+      rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0&&x.played?'first':''}">${i===0&&x.played?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.wins}</b></td><td class="num">${x.played}</td><td class="num">${x.avg==null?'–':fmt(x.avg)}</td></tr>`;});
       box.innerHTML=h+'</tbody></table><div class="note">Most daily wins takes the week and a trophy 🏆; everyone else who played gets a wooden spoon 🥄. Ties go to the lower average score. The week closes Sunday at midnight.</div>';
     } else {
       const rows=named.map(p=>{const st=stats(p,d=>d!==TODAY); const all=stats(p,()=>true); const res=p.data.results||{};
@@ -634,15 +625,15 @@ function renderLB(){
         return {p, weekly:trophies[p.id]||0, spoons:spoons[p.id]||0, daily:st.wins, played:all.played, best:all.best, avg:all.avg, streak};
       }).filter(x=>x.played).sort((a,b)=>b.weekly-a.weekly||b.daily-a.daily||(a.avg-b.avg));
       if(!rows.length){ box.innerHTML='<div class="empty">No finished puzzles yet. The overall league fills up as people play.</div>'; return; }
-      let h='<table><thead><tr><th></th><th>Player</th><th class="num" title="Weekly trophies">🏆</th><th class="num" title="Wooden spoons">🥄</th><th class="num">Daily wins</th><th class="num">Played</th><th class="num hide-sm">Streak</th><th class="num hide-sm">Best</th></tr></thead><tbody>';
+      let h='<table><thead><tr><th></th><th>Player</th><th class="num" title="Weekly trophies">🏆</th><th class="num" title="Wooden spoons">🥄</th><th class="num">Daily wins</th><th class="num">Days played</th><th class="num hide-sm">Streak</th><th class="num hide-sm">Best</th></tr></thead><tbody>';
       rows.forEach((x,i)=>{h+=`<tr class="${x.p.id===myId?'me':''}"><td class="rank ${i===0?'first':''}">${i===0?'🏆':i+1}</td><td>${esc(x.p.data.name)}</td><td class="num"><b>${x.weekly}</b></td><td class="num">${x.spoons}</td><td class="num">${x.daily}</td><td class="num">${x.played}</td><td class="num hide-sm">${x.streak}</td><td class="num hide-sm">${fmt(x.best)}</td></tr>`;});
       box.innerHTML=h+'</tbody></table><div class="note">🏆 weekly trophies and 🥄 wooden spoons are handed out when each week closes on Sunday at midnight. Ranked by trophies, then daily wins.</div>';
     }
   }
 }
 function weekOf(s){ const t=Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)); const dow=(new Date(t).getUTCDay()+6)%7; return new Date(t-dow*86400000).toISOString().slice(0,10); }
-function setTab(t){ tab=t; ['Today','Week','All'].forEach(n=>$('tab'+n).setAttribute('aria-selected',t===n.toLowerCase())); renderLB(); }
-$('tabToday').addEventListener('click',()=>setTab('today')); $('tabWeek').addEventListener('click',()=>setTab('week')); $('tabAll').addEventListener('click',()=>setTab('all'));
+function setTab(t){ tab=t; ['Week','All'].forEach(n=>$('tab'+n).setAttribute('aria-selected',t===n.toLowerCase())); renderLB(); }
+$('tabWeek').addEventListener('click',()=>setTab('week')); $('tabAll').addEventListener('click',()=>setTab('all'));
 
 // ---------- boot ----------
 function syncFromServer(){
@@ -759,14 +750,13 @@ function showResult(ms,mistakes,score){
 }
 function updateResultRank(){
   if(!$('rRank')||MODE==='practice') return;
-  const done=(players||[]).filter(p=>p.data&&p.data.name&&p.data.results&&p.data.results[DAY]).sort((a,b)=>a.data.results[DAY].score-b.data.results[DAY].score);
-  const i=done.findIndex(p=>p.id===myId);
-  $('rRankBox').querySelector('span').textContent=DAY===TODAY?'Today':'That day';
-  $('rRank').textContent= i<0 ? '–' : (i===0?'🏆 1st':ordinal(i+1))+' of '+done.length;
+  const rows=weekRowsCache||[], i=rows.findIndex(x=>x.p.id===myId);
+  $('rRankBox').querySelector('span').textContent='This week';
+  $('rRank').textContent= i<0 ? '–' : (i===0?'🏆 1st':ordinal(i+1))+' of '+rows.length;
   $('rRankBox').hidden=i<0;
 }
 function ordinal(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
-$('rLb').addEventListener('click',()=>{ setTab('today'); if(matchMedia('(max-width:760px)').matches) setView('lb'); else document.querySelector('aside.v-lb').scrollIntoView({behavior:'smooth',block:'start'}); });
+$('rLb').addEventListener('click',()=>{ setTab('week'); if(matchMedia('(max-width:760px)').matches) setView('lb'); else document.querySelector('aside.v-lb').scrollIntoView({behavior:'smooth',block:'start'}); });
 
 function loadDay(d){
   clearInterval(timerId); DAY=d; MODE='daily'; N=9; setModeUI(); $('doneCard').hidden=true; $('result').hidden=true; fillDays();
